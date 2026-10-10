@@ -23,7 +23,7 @@ exports.handler = async (event) => {
   const dia = /^\d{4}-\d{2}-\d{2}$/.test(q.dia || "") ? q.dia : hojeBR();
 
   if (event.httpMethod === "GET") {
-    const chaves = await db.list(dia + "/");
+    const chaves = (await db.list(dia + "/")).filter(k => !k.includes("/n/") && !k.startsWith("_"));
     const lista = (await Promise.all(chaves.map(k => db.get(k)))).filter(Boolean).sort((a, b) => b.t - a.t);
     return json(200, { dia, pedidos: lista });
   }

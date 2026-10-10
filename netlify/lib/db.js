@@ -10,7 +10,8 @@ function abrir(event) {
     return {
       async get(k) { try { return JSON.parse(fs.readFileSync(f(k), "utf8")); } catch (e) { return null; } },
       async set(k, v) { fs.writeFileSync(f(k), JSON.stringify(v)); },
-      async list(prefix) { return fs.readdirSync(dir).map(decodeURIComponent).filter(k => k.startsWith(prefix)); }
+      async list(prefix) { return fs.readdirSync(dir).map(decodeURIComponent).filter(k => k.startsWith(prefix)); },
+      async criar(k, v) { try { fs.writeFileSync(f(k), JSON.stringify(v), { flag: "wx" }); return true; } catch (e) { return false; } }
     };
   }
   const { connectLambda, getStore } = require("@netlify/blobs");
@@ -20,7 +21,9 @@ function abrir(event) {
   return {
     async get(k) { return store.get(k, { type: "json" }); },
     async set(k, v) { await store.setJSON(k, v); },
-    async list(prefix) { const r = await store.list({ prefix }); return r.blobs.map(b => b.key); }
+    async list(prefix) { const r = await store.list({ prefix }); return r.blobs.map(b => b.key); },
+    // grava só se a chave ainda não existir (garante números de comanda sem repetição)
+    async criar(k, v) { const r = await store.setJSON(k, v, { onlyIfNew: true }); return !!(r && r.modified); }
   };
 }
 

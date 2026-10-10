@@ -51,10 +51,20 @@ exports.handler = async (event) => {
   }
   if (existente) return json(200, { ok: true, pedido: existente.p, numero: existente.n });
 
+  // Número da comanda do dia: 01, 02, 03... (recomeça todo dia)
+  let numero = null;
+  try {
+    let n = (await db.list(`${dia}/n/`)).length + 1;
+    for (let t = 0; t < 60 && !numero; t++, n++) {
+      if (await db.criar(`${dia}/n/${String(n).padStart(4, "0")}`, { p: p.pedido })) numero = String(n).padStart(2, "0");
+    }
+  } catch (e) { console.error("Numeração:", e); }
+  if (!numero) numero = p.pedido.slice(-5);
+
   const c = p.c;
   const pedido = {
     p: p.pedido,
-    n: p.pedido.slice(-5),                         // número curto que aparece na tela e na comanda
+    n: numero,                                     // número da comanda: 01, 02, 03...
     t: Date.now(),
     st: "novo",
     i: p.itens.map(i => [i.qty, i.nome, i.unit, i.total, i.opts.map(o => `${o.g}: ${o.v.join(", ")}`), i.obs]),
