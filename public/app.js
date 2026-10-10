@@ -327,8 +327,15 @@ function stepRevisao() {
     $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><button class="primary" type="button" id="payBtn"><span>Pagar com cartão ${brl(totalPedido())}</span><span>→</span></button>`;
     $("#payBtn").onclick = telaCartao;
   } else {
-    $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><a class="primary wa" id="sendWa" href="${waLink(mensagem())}" target="_blank" rel="noopener"><span>Enviar no WhatsApp</span><span>${brl(totalPedido())}</span></a>`;
-    $("#sendWa").onclick = () => { px("Lead", { value: totalPedido(), currency: "BRL" }); setTimeout(() => telaEnviado(mensagem(), false), 300); };
+    $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><a class="primary wa" id="sendWa" href="#" target="_blank" rel="noopener" aria-disabled="true" style="opacity:.6;pointer-events:none"><span>Preparando pedido…</span><span>${brl(totalPedido())}</span></a>`;
+    let assin = null;
+    assinarPedido(null).then(a => {
+      assin = a;
+      const el = $("#sendWa"); if (!el) return;
+      el.href = waLink(mensagem(null, assin)); el.style.opacity = ""; el.style.pointerEvents = ""; el.removeAttribute("aria-disabled");
+      el.firstElementChild.textContent = "Enviar no WhatsApp";
+    });
+    $("#sendWa").onclick = () => { px("Lead", { value: totalPedido(), currency: "BRL" }); const m = mensagem(null, assin); setTimeout(() => telaEnviado(m, false), 300); };
   }
   $("#back").onclick = () => goto(3);
 }
@@ -379,7 +386,7 @@ async function telaCartao() {
           resolve();
           px("Purchase", { value: r.total, currency: "BRL" });
           try { cardBrick.unmount(); } catch (e) {}
-          telaEnviado(mensagem({ pedido: r.pedido, id: r.id, metodo: r.metodo || "credit_card" }), true);
+          finalizar({ pedido: r.pedido, id: r.id, metodo: r.metodo || "credit_card" });
         } else if (r.status === "in_process" || r.status === "pending") {
           resolve();
           try { cardBrick.unmount(); } catch (e) {}
@@ -456,7 +463,7 @@ function telaPix(p) {
       clearInterval(pixTimer);
       px("Purchase", { value: s.valor, currency: "BRL" });
       if ($("#cartOv").hidden) show("#cartOv");
-      telaEnviado(mensagem({ pedido: s.pedido, id: s.id, metodo: s.metodo || "bank_transfer" }), true);
+      finalizar({ pedido: s.pedido, id: s.id, metodo: s.metodo || "bank_transfer" });
     } else if (s.status === "cancelled" || s.status === "rejected") {
       clearInterval(pixTimer); store.del("bravio_pendente");
       $("#pixSt").innerHTML = `<span>${p.analise ? "Pagamento recusado pelo banco. Tente outro cartão ou o Pix." : "Pix cancelado. Gere um novo ou escolha outra forma de pagamento."}</span>`;
@@ -481,11 +488,19 @@ async function pagarOnline() {
 }
 
 /* ---------- mensagem do WhatsApp ---------- */
-function mensagem(pago) {
+function mensagem(pago, assin) {
   const c = cliente, L = linhas(), st = subtotal();
   const M = [];
-  M.push(`*NOVO PEDIDO · ${CONFIG.nome.toUpperCase()}*`);
-  if (pago) M.push(`Pedido ${pago.pedido}`);
+  const num = assin ? assin.pedido : pago ? pago.pedido : "";
+  M.push(`*NOVO PEDIDO${num ? " #" + num.slice(-6) : ""} · ${CONFIG.nome.toUpperCase()}*`);
+  if (assin) {
+    M.push("");
+    M.push("🔒 *Comanda oficial (não editável) — abrir e imprimir:*");
+    M.push(assin.link);
+    M.push(`Cód. de verificação: *${assin.codigo}*`);
+    M.push("_Se o texto abaixo for diferente da comanda, vale a comanda._");
+    M.push("──────────");
+  }
   M.push("");
   L.forEach(i => { M.push(`*${i.qty}x ${i.nome}* · ${brl(i.total)}`); optText(i).forEach(t => M.push(`   - ${t}`)); });
   M.push("");
@@ -509,6 +524,27 @@ function mensagem(pago) {
   return M.join("\n");
 }
 const waLink = msg => `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(msg)}`;
+
+/* ---------- comanda oficial assinada pelo servidor ---------- */
+async function assinarPedido(pago) {
+  const body = {
+    itens: cart.map(i => ({ id: i.id, qty: i.qty, sel: i.sel, obs: i.obs })),
+    cliente: { nome: cliente.nome, fone: cliente.fone, rua: cliente.rua, numero: cliente.num, comp: cliente.comp, bairro: cliente.bairro, ref: cliente.ref, obs: cliente.obs },
+    cep: cliente.cep,
+    entrega: { lat: frete.lat, lng: frete.lng },
+    pagamento: pago ? { modo: "online", id: pago.id } : { modo: "entrega", forma: cliente.pag, troco: parseFloat(String(cliente.troco || "").replace(",", ".")) || 0 }
+  };
+  try {
+    const r = await api("assinar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    return r && r.ok ? r : null;
+  } catch (e) { return null; }
+}
+async function finalizar(pago) {
+  $("#cSteps").innerHTML = ""; $("#cFoot").innerHTML = "";
+  $("#cBody").innerHTML = `<div class="sent"><div class="okbadge">Pagamento aprovado</div><h4>Gerando sua comanda…</h4></div>`;
+  const assin = await assinarPedido(pago);
+  telaEnviado(mensagem(pago, assin), true);
+}
 
 function telaEnviado(msg, pago) {
   $("#cSteps").innerHTML = "";
@@ -543,7 +579,7 @@ async function retornoPagamento() {
   const s = await api("status?payment_id=" + encodeURIComponent(pid)).catch(() => ({}));
   if (s.status === "approved" && s.pedido === pend.pedido) {
     px("Purchase", { value: s.valor, currency: "BRL" });
-    telaEnviado(mensagem({ pedido: s.pedido, id: s.id, metodo: s.metodo }), true);
+    finalizar({ pedido: s.pedido, id: s.id, metodo: s.metodo });
   } else if (s.status === "pending" || s.status === "in_process") {
     $("#cBody").innerHTML = `<div class="sent"><h4>Aguardando pagamento</h4><p>Assim que o Pix ou cartão for confirmado, toque em verificar.</p></div>`;
     $("#cFoot").innerHTML = `<button class="primary" type="button" id="recheck"><span>Já paguei, verificar</span><span>↻</span></button>`;
