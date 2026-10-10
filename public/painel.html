@@ -144,6 +144,7 @@ const hora = t => new Date(t).toLocaleTimeString("pt-BR", { timeZone: "America/S
 let senha = ls.get("bravio_painel_senha", "");
 let pedidos = [], vistos = new Set(ls.get("bravio_vistos", [])), impressos = new Set(ls.get("bravio_impressos", []));
 let confirmando = null, timer = null;
+const ajustes = {};   // { pedido: { st, ate } }
 
 /* ---------- login ---------- */
 $("#loginForm").onsubmit = async e => {
@@ -190,7 +191,9 @@ async function carregar(teste) {
     const r = await fetch("/api/pedidos?dia=" + encodeURIComponent($("#dia").value || hojeBR()), { headers: { "x-senha": senha }, cache: "no-store" });
     if (r.status === 401 || r.status === 500) { if (!teste) { ls.set("bravio_painel_senha", ""); location.reload(); } return r.status; }
     const j = await r.json();
-    pedidos = j.pedidos || [];
+    // O banco pode levar alguns segundos para refletir uma mudança: mantém o status que a equipe acabou de escolher
+    const agora = Date.now();
+    pedidos = (j.pedidos || []).map(p => { const o = ajustes[p.p]; return o && o.ate > agora && o.st !== p.st ? { ...p, st: o.st } : p; });
     $("#dot").classList.remove("off"); $("#sync").textContent = "Atualizado " + hora(Date.now());
     if (!teste) { render(); novidades(); }
     return 200;
@@ -214,7 +217,7 @@ function novidades() {
 
 async function mudar(p, status) {
   const r = await fetch("/api/pedidos", { method: "POST", headers: { "Content-Type": "application/json", "x-senha": senha }, body: JSON.stringify({ dia: $("#dia").value, pedido: p.p, status }) }).then(r => r.json()).catch(() => ({}));
-  if (r.ok) { const i = pedidos.findIndex(x => x.p === p.p); pedidos[i] = r.pedido; confirmando = null; render(); novidades(); }
+  if (r.ok) { ajustes[p.p] = { st: status, ate: Date.now() + 120000 }; const i = pedidos.findIndex(x => x.p === p.p); pedidos[i] = r.pedido; confirmando = null; render(); novidades(); }
   else alert(r.erro || "Não foi possível atualizar. Verifique a internet.");
 }
 

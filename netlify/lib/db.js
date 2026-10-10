@@ -15,7 +15,8 @@ function abrir(event) {
   }
   const { connectLambda, getStore } = require("@netlify/blobs");
   if (event) connectLambda(event);
-  const store = getStore({ name: "pedidos", consistency: "strong" });
+  // Consistência "eventual": a Netlify replica em poucos segundos (o painel compensa isso).
+  const store = getStore({ name: "pedidos" });
   return {
     async get(k) { return store.get(k, { type: "json" }); },
     async set(k, v) { await store.setJSON(k, v); },
