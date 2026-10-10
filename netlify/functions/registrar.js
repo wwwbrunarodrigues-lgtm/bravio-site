@@ -9,6 +9,15 @@ const FORMAS = ["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro"];
 const corta = (v, n) => String(v || "").trim().slice(0, n);
 
 exports.handler = async (event) => {
+  // Diagnóstico: abra /api/registrar?teste=1 no navegador para testar o banco de pedidos
+  if (event.httpMethod === "GET" && (event.queryStringParameters || {}).teste) {
+    try {
+      const db = abrir(event);
+      await db.set("_teste/ping", { t: Date.now() });
+      const v = await db.get("_teste/ping");
+      return json(200, { ok: !!v, banco: v ? "funcionando" : "gravou mas não leu" });
+    } catch (e) { return json(500, { ok: false, erro: String(e && e.message || e) }); }
+  }
   if (event.httpMethod !== "POST") return json(405, { erro: "Use POST" });
   let b; try { b = JSON.parse(event.body || "{}"); } catch { return json(400, { erro: "JSON inválido" }); }
   let p; try { p = montarPedido(b); } catch (e) { return json(400, { erro: e.message }); }
@@ -30,10 +39,16 @@ exports.handler = async (event) => {
     pagamento = { m: "entrega", d: forma, troco: forma === "Dinheiro" && Number(pg.troco) > 0 ? CAT.r2(Number(pg.troco)) : 0 };
   }
 
-  const db = abrir(event);
+  let db, existente;
   const dia = hojeBR();
   const chave = `${dia}/${p.pedido}`;
-  const existente = await db.get(chave);          // evita pedido duplicado (clique duplo / recarregar a página)
+  try {
+    db = abrir(event);
+    existente = await db.get(chave);              // evita pedido duplicado (clique duplo / recarregar a página)
+  } catch (e) {
+    console.error("Banco de pedidos:", e);
+    return json(500, { erro: "Banco de pedidos indisponível: " + String(e && e.message || e) });
+  }
   if (existente) return json(200, { ok: true, pedido: existente.p, numero: existente.n });
 
   const c = p.c;
@@ -49,6 +64,7 @@ exports.handler = async (event) => {
     pg: pagamento,
     g: [Number(b.entrega.lat), Number(b.entrega.lng)]
   };
-  await db.set(chave, pedido);
+  try { await db.set(chave, pedido); }
+  catch (e) { console.error("Banco de pedidos:", e); return json(500, { erro: "Não foi possível gravar o pedido: " + String(e && e.message || e) }); }
   return json(200, { ok: true, pedido: pedido.p, numero: pedido.n });
 };

@@ -512,6 +512,7 @@ function mensagem(pago, reg) {
 const waLink = msg => `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(msg)}`;
 
 /* ---------- registra o pedido no painel da loja ---------- */
+let ultimoErro = "";
 async function registrarPedido(pago) {
   const body = {
     itens: cart.map(i => ({ id: i.id, qty: i.qty, sel: i.sel, obs: i.obs })),
@@ -522,8 +523,11 @@ async function registrarPedido(pago) {
   };
   try {
     const r = await api("registrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    return r && r.ok ? r : null;
-  } catch (e) { return null; }
+    if (r && r.ok) return r;
+    ultimoErro = (r && r.erro) || "sem resposta do servidor";
+    console.error("Pedido não registrado:", ultimoErro);
+    return null;
+  } catch (e) { ultimoErro = "sem conexão"; return null; }
 }
 async function finalizar(pago) {
   $("#cSteps").innerHTML = ""; $("#cFoot").innerHTML = "";
@@ -558,6 +562,7 @@ function telaEnviado(msg, pago, enviar) {
     <p class="hint">Se o WhatsApp não abrir, copie o pedido e mande para <b>${esc(CONFIG.telefone)}</b>.</p>
     <pre class="msg" id="msgTxt">${esc(msg)}</pre></div>`;
   if (enviar && !pago) $("#cBody").querySelector("p").innerHTML = "Toque em <b>Enviar no WhatsApp</b> para confirmar o seu pedido.";
+  if (enviar && ultimoErro) $("#cBody").querySelector(".hint").insertAdjacentHTML("afterend", `<p class="hint" style="opacity:.6">Detalhe técnico: ${esc(ultimoErro)}</p>`);
   $("#cFoot").innerHTML = (pago || enviar)
     ? `<button class="ghost" type="button" id="copyMsg">Copiar</button><a class="primary wa" id="sendWa" href="${waLink(msg)}" target="_blank" rel="noopener"><span>Enviar no WhatsApp</span><span>→</span></a>`
     : `<button class="ghost" type="button" id="copyMsg">Copiar pedido</button><button class="primary" type="button" id="novo"><span>Novo pedido</span><span>→</span></button>`;
