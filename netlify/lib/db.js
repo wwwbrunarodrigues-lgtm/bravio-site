@@ -1,0 +1,29 @@
+// Banco de pedidos. No ar usa o Netlify Blobs (grátis, já vem com a Netlify).
+// Em testes locais (variável BLOBS_LOCAL_DIR) grava em arquivos.
+const fs = require("fs"), path = require("path");
+
+function abrir(event) {
+  if (process.env.BLOBS_LOCAL_DIR) {
+    const dir = process.env.BLOBS_LOCAL_DIR;
+    const f = k => path.join(dir, encodeURIComponent(k));
+    fs.mkdirSync(dir, { recursive: true });
+    return {
+      async get(k) { try { return JSON.parse(fs.readFileSync(f(k), "utf8")); } catch (e) { return null; } },
+      async set(k, v) { fs.writeFileSync(f(k), JSON.stringify(v)); },
+      async list(prefix) { return fs.readdirSync(dir).map(decodeURIComponent).filter(k => k.startsWith(prefix)); }
+    };
+  }
+  const { connectLambda, getStore } = require("@netlify/blobs");
+  if (event) connectLambda(event);
+  const store = getStore({ name: "pedidos", consistency: "strong" });
+  return {
+    async get(k) { return store.get(k, { type: "json" }); },
+    async set(k, v) { await store.setJSON(k, v); },
+    async list(prefix) { const r = await store.list({ prefix }); return r.blobs.map(b => b.key); }
+  };
+}
+
+// data de hoje no fuso de Brasília: 2026-10-10
+const hojeBR = (t = Date.now()) => new Date(t - 3 * 3600000).toISOString().slice(0, 10);
+
+module.exports = { abrir, hojeBR };

@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Painel de Pedidos · Bravio</title>
+<link rel="icon" href="img/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --bg:#0A0806;--surface:#15110D;--surface-2:#1E1813;--ink:#F6EFE4;--muted:#A99C8B;--line:#2F2720;
+  --gold:#F2A81D;--gold-ink:#1A1206;--red:#D8352A;--ok:#1FA855;--blue:#3B82F6;--w:80mm;
+  --display:"Bebas Neue",Impact,"Arial Narrow",sans-serif;--cond:"Barlow Condensed","Arial Narrow",sans-serif;--body:"Barlow",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* login */
+.login{min-height:100vh;display:grid;place-items:center;padding:16px}
+.login form{width:100%;max-width:360px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:24px;display:flex;flex-direction:column;gap:12px}
+.login img{width:180px;margin:0 auto;mix-blend-mode:lighten}
+.login h1{font-family:var(--display);font-weight:400;font-size:34px;margin:0;text-align:center;letter-spacing:.03em}
+.in{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:12px;font-size:16px}
+.btn{border:0;border-radius:10px;padding:10px 14px;font-family:var(--cond);font-weight:700;font-size:17px;text-transform:uppercase;letter-spacing:.03em;cursor:pointer;background:var(--surface-2);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.gold{background:var(--gold);color:var(--gold-ink)}
+.btn.ok{background:var(--ok);color:#fff}
+.btn.blue{background:var(--blue);color:#fff}
+.btn.red{background:transparent;border:1px solid var(--red);color:#FF8A7E}
+.err{color:#FF8A7E;font-weight:700;font-size:14px;text-align:center}
+
+/* topo */
+header{position:sticky;top:0;z-index:5;background:rgba(10,8,6,.96);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+header .t{font-family:var(--display);font-size:28px;letter-spacing:.03em;margin-right:auto}
+header .t span{color:var(--gold)}
+.tog{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+.tog input{accent-color:var(--gold);width:18px;height:18px;margin:0}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block}
+.dot.off{background:var(--red)}
+input[type=date]{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+.aviso{background:var(--red);color:#fff;text-align:center;padding:10px 16px;font-weight:700;cursor:pointer}
+.aviso.som{background:var(--gold);color:var(--gold-ink)}
+
+/* colunas */
+main{padding:16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start}
+@media (max-width:1100px){main{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){main{grid-template-columns:1fr}}
+.col h2{font-family:var(--cond);font-size:18px;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center}
+.col h2 b{background:var(--surface-2);border-radius:999px;padding:2px 10px;font-size:15px}
+.col[data-c=novo] h2{color:var(--red)}.col[data-c=preparo] h2{color:var(--gold)}.col[data-c=saiu] h2{color:#7FB3FF}.col[data-c=fim] h2{color:var(--muted)}
+.vazio{color:var(--muted);font-size:14px;border:1px dashed var(--line);border-radius:12px;padding:16px;text-align:center}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
+.card.novo{border-color:var(--red);box-shadow:0 0 0 1px var(--red) inset;animation:pisca 1.2s ease-in-out infinite}
+@keyframes pisca{50%{box-shadow:0 0 0 3px rgba(216,53,42,.5) inset}}
+@media (prefers-reduced-motion:reduce){.card.novo{animation:none}}
+.card.cancelado{opacity:.55}
+.ch{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.num{font-family:var(--display);font-size:30px;line-height:1;letter-spacing:.03em}
+.hora{color:var(--muted);font-size:13px;text-align:right}
+.cli{font-weight:700}
+.cli small{display:block;font-weight:500;color:var(--muted)}
+.its{font-size:14px;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);padding:6px 0}
+.its div{padding:2px 0}
+.its small{display:block;color:var(--muted);padding-left:18px}
+.its em{display:block;color:var(--gold);font-style:normal;font-weight:700;padding-left:18px}
+.tot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.tot strong{font-family:var(--display);font-size:24px;color:var(--gold)}
+.pill{font-size:12px;font-weight:800;border-radius:6px;padding:3px 8px;text-transform:uppercase;letter-spacing:.04em}
+.pill.pago{background:var(--ok);color:#fff}.pill.cobrar{background:var(--gold);color:var(--gold-ink)}
+.acts{display:flex;flex-wrap:wrap;gap:6px}
+.acts .btn{font-size:15px;padding:8px 10px;flex:1 1 auto}
+.confirma{background:var(--surface-2);border-radius:10px;padding:10px;font-size:14px;display:flex;flex-direction:column;gap:8px}
+
+/* comanda (só aparece na impressão) */
+#print{display:none}
+.ticket{width:var(--w);font-family:"Courier New",ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.3;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.w58 .ticket{font-size:11.5px}
+.ticket .c{text-align:center}.ticket .big{font-size:2.2em;font-weight:900;line-height:1.05}
+.ticket .nome{font-weight:900;font-size:1.25em;letter-spacing:.06em}
+.ticket hr{border:0;border-top:1px dashed #000;margin:7px 0}.ticket hr.solid{border-top:2px solid #000}
+.ticket .row{display:flex;justify-content:space-between;gap:8px}
+.ticket .it{margin:6px 0}.ticket .q{font-weight:900;font-size:1.15em}.ticket .op{padding-left:3ch}.ticket .ob{padding-left:3ch;font-weight:900}
+.ticket .tt{font-weight:900;font-size:1.3em}
+.ticket .box{border:2px solid #000;padding:5px;margin:6px 0;text-align:center;font-weight:900;font-size:1.1em}
+.ticket .inv{background:#000;color:#fff;padding:4px;text-align:center;font-weight:900;font-size:1.1em}
+@media print{
+  @page{size:var(--w) auto;margin:0}
+  body{background:#fff}
+  body>*:not(#print){display:none!important}
+  #print{display:block}
+  .ticket{width:100%;padding:2mm 3mm}
+}
+</style>
+</head>
+<body>
+
+<section class="login" id="login">
+  <form id="loginForm">
+    <img src="img/logo.jpg" alt="Bravio Food House">
+    <h1>Painel de pedidos</h1>
+    <label for="senha" style="font-weight:700;font-size:14px">Senha do painel</label>
+    <input class="in" id="senha" type="password" autocomplete="current-password" required>
+    <button class="btn gold" type="submit">Entrar</button>
+    <div class="err" id="loginErr" hidden></div>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <header>
+    <div class="t">BRAVIO <span>PEDIDOS</span></div>
+    <span class="tog" title="Atualiza sozinho a cada 8 segundos"><i class="dot" id="dot"></i><span id="sync">Conectando…</span></span>
+    <input type="date" id="dia" aria-label="Dia">
+    <label class="tog"><input type="checkbox" id="autoPrint"> Imprimir sozinho</label>
+    <label class="tog"><input type="checkbox" id="somOn" checked> Som</label>
+    <button class="btn" type="button" id="papel">Papel 80 mm</button>
+    <button class="btn" type="button" id="sair">Sair</button>
+  </header>
+  <div class="aviso som" id="avisoSom">Toque aqui para ativar o som de novos pedidos</div>
+  <main id="cols">
+    <section class="col" data-c="novo"><h2>Novos <b id="k-novo">0</b></h2><div id="l-novo"></div></section>
+    <section class="col" data-c="preparo"><h2>Em preparo <b id="k-preparo">0</b></h2><div id="l-preparo"></div></section>
+    <section class="col" data-c="saiu"><h2>Saiu p/ entrega <b id="k-saiu">0</b></h2><div id="l-saiu"></div></section>
+    <section class="col" data-c="fim"><h2>Finalizados <b id="k-fim">0</b></h2><div id="l-fim"></div></section>
+  </main>
+</div>
+
+<div id="print"></div>
+
+<script>
+(function () {
+const $ = s => document.querySelector(s);
+const brl = v => Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const hojeBR = () => new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+const hora = t => new Date(t).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+
+let senha = ls.get("bravio_painel_senha", "");
+let pedidos = [], vistos = new Set(ls.get("bravio_vistos", [])), impressos = new Set(ls.get("bravio_impressos", []));
+let confirmando = null, timer = null;
+
+/* ---------- login ---------- */
+$("#loginForm").onsubmit = async e => {
+  e.preventDefault(); senha = $("#senha").value;
+  const r = await carregar(true);
+  if (r === 401) { $("#loginErr").hidden = false; $("#loginErr").textContent = "Senha incorreta."; return; }
+  if (r === 500) { $("#loginErr").hidden = false; $("#loginErr").textContent = "Painel sem senha configurada. Crie a variável PAINEL_SENHA na Netlify."; return; }
+  ls.set("bravio_painel_senha", senha); entrar();
+};
+$("#sair").onclick = () => { ls.set("bravio_painel_senha", ""); location.reload(); };
+function entrar() { $("#login").hidden = true; $("#app").hidden = false; ciclo(); }
+
+/* ---------- preferências do aparelho ---------- */
+$("#dia").value = hojeBR();
+$("#dia").onchange = () => carregar();
+$("#autoPrint").checked = ls.get("bravio_autoprint", false);
+$("#autoPrint").onchange = e => ls.set("bravio_autoprint", e.target.checked);
+$("#somOn").checked = ls.get("bravio_som", true);
+$("#somOn").onchange = e => { ls.set("bravio_som", e.target.checked); if (!e.target.checked) pararSom(); };
+let papel = ls.get("bravio_papel", "80");
+function aplicaPapel() { document.documentElement.style.setProperty("--w", papel + "mm"); document.body.classList.toggle("w58", papel === "58"); $("#papel").textContent = "Papel " + papel + " mm"; }
+$("#papel").onclick = () => { papel = papel === "80" ? "58" : "80"; ls.set("bravio_papel", papel); aplicaPapel(); };
+aplicaPapel();
+
+/* ---------- som de campainha (toca até alguém aceitar) ---------- */
+let ctx = null, somTimer = null;
+$("#avisoSom").onclick = () => { try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); } catch (e) {} $("#avisoSom").hidden = true; bip(); };
+function bip() {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  [0, 0.18, 0.36].forEach((d, i) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "square"; o.frequency.value = i === 2 ? 1320 : 990;
+    g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(0.25, t + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.15);
+    o.connect(g).connect(ctx.destination); o.start(t + d); o.stop(t + d + 0.16);
+  });
+}
+function tocarSom() { if (!$("#somOn").checked || somTimer) return; bip(); somTimer = setInterval(bip, 2500); }
+function pararSom() { clearInterval(somTimer); somTimer = null; }
+
+/* ---------- dados ---------- */
+async function carregar(teste) {
+  try {
+    const r = await fetch("/api/pedidos?dia=" + encodeURIComponent($("#dia").value || hojeBR()), { headers: { "x-senha": senha }, cache: "no-store" });
+    if (r.status === 401 || r.status === 500) { if (!teste) { ls.set("bravio_painel_senha", ""); location.reload(); } return r.status; }
+    const j = await r.json();
+    pedidos = j.pedidos || [];
+    $("#dot").classList.remove("off"); $("#sync").textContent = "Atualizado " + hora(Date.now());
+    if (!teste) { render(); novidades(); }
+    return 200;
+  } catch (e) {
+    $("#dot").classList.add("off"); $("#sync").textContent = "Sem conexão";
+    return 0;
+  }
+}
+function ciclo() { carregar(); clearInterval(timer); timer = setInterval(carregar, 8000); }
+
+function novidades() {
+  const novos = pedidos.filter(p => p.st === "novo");
+  if (novos.length) tocarSom(); else pararSom();
+  const nunca = novos.filter(p => !vistos.has(p.p));
+  nunca.forEach(p => vistos.add(p.p));
+  ls.set("bravio_vistos", [...vistos].slice(-300));
+  if (nunca.length) document.title = `(${novos.length}) Novo pedido! · Bravio`;
+  else if (!novos.length) document.title = "Painel de Pedidos · Bravio";
+  if ($("#autoPrint").checked) novos.filter(p => !impressos.has(p.p)).forEach(p => imprimir(p));
+}
+
+async function mudar(p, status) {
+  const r = await fetch("/api/pedidos", { method: "POST", headers: { "Content-Type": "application/json", "x-senha": senha }, body: JSON.stringify({ dia: $("#dia").value, pedido: p.p, status }) }).then(r => r.json()).catch(() => ({}));
+  if (r.ok) { const i = pedidos.findIndex(x => x.p === p.p); pedidos[i] = r.pedido; confirmando = null; render(); novidades(); }
+  else alert(r.erro || "Não foi possível atualizar. Verifique a internet.");
+}
+
+/* ---------- tela ---------- */
+function render() {
+  const grupos = { novo: [], preparo: [], saiu: [], fim: [] };
+  pedidos.forEach(p => (grupos[p.st === "entregue" || p.st === "cancelado" ? "fim" : p.st] || grupos.novo).push(p));
+  grupos.novo.sort((a, b) => a.t - b.t); grupos.preparo.sort((a, b) => a.t - b.t); grupos.saiu.sort((a, b) => a.t - b.t);
+  Object.entries(grupos).forEach(([k, l]) => {
+    $("#k-" + k).textContent = l.length;
+    $("#l-" + k).innerHTML = l.length ? l.map(card).join("") : `<div class="vazio">${k === "novo" ? "Nenhum pedido novo. Os pedidos do site aparecem aqui sozinhos." : "Vazio"}</div>`;
+  });
+}
+function card(p) {
+  const min = Math.floor((Date.now() - p.t) / 60000);
+  const pago = p.pg.m === "online";
+  const fone = String(p.c.f).replace(/\D/g, "");
+  const acao = {
+    novo: `<button class="btn ok" data-a="preparo" data-p="${p.p}">Aceitar e imprimir</button>`,
+    preparo: `<button class="btn blue" data-a="saiu" data-p="${p.p}">Saiu para entrega</button>`,
+    saiu: `<button class="btn ok" data-a="entregue" data-p="${p.p}">Entregue</button>`
+  }[p.st] || "";
+  return `<article class="card ${p.st}">
+    <div class="ch"><span class="num">#${esc(p.n)}</span><span class="hora">${hora(p.t)}<br>${p.st === "entregue" ? "entregue" : p.st === "cancelado" ? "cancelado" : min + " min"}</span></div>
+    <div class="cli">${esc(p.c.n)}<small>${esc(p.c.b)} · ${String(p.km).replace(".", ",")} km</small></div>
+    <div class="its">${p.i.map(i => `<div><b>${i[0]}x</b> ${esc(i[1])}${i[4].map(o => `<small>${esc(o)}</small>`).join("")}${i[5] ? `<em>Obs: ${esc(i[5])}</em>` : ""}</div>`).join("")}${p.o ? `<em style="padding:4px 0 0">Obs do pedido: ${esc(p.o)}</em>` : ""}</div>
+    <div class="tot"><strong>${brl(p.tot)}</strong>${pago ? `<span class="pill pago">Pago · ${esc(p.pg.d)}</span>` : `<span class="pill cobrar">Cobrar · ${esc(p.pg.d)}${p.pg.troco ? " · troco p/ " + brl(p.pg.troco) : ""}</span>`}</div>
+    ${confirmando === p.p ? `<div class="confirma">Cancelar o pedido #${esc(p.n)}?${pago ? " <b>Ele já foi pago: faça a devolução no Mercado Pago.</b>" : ""}<div class="acts"><button class="btn red" data-a="cancelado" data-p="${p.p}">Sim, cancelar</button><button class="btn" data-x="1">Voltar</button></div></div>` : ""}
+    <div class="acts">${acao}
+      <button class="btn" data-print="${p.p}">Imprimir</button>
+      <a class="btn" href="https://wa.me/55${fone}" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="btn" href="https://maps.google.com/?q=${p.g[0]},${p.g[1]}" target="_blank" rel="noopener">Mapa</a>
+      ${["novo", "preparo", "saiu"].includes(p.st) && confirmando !== p.p ? `<button class="btn red" data-cancel="${p.p}">Cancelar</button>` : ""}
+    </div></article>`;
+}
+$("#cols").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const achar = id => pedidos.find(x => x.p === id);
+  if (b.dataset.a) { const p = achar(b.dataset.p); if (b.dataset.a === "preparo" && !impressos.has(p.p)) imprimir(p); mudar(p, b.dataset.a); }
+  else if (b.dataset.print) imprimir(achar(b.dataset.print), true);
+  else if (b.dataset.cancel) { confirmando = b.dataset.cancel; render(); }
+  else if (b.dataset.x) { confirmando = null; render(); }
+});
+
+/* ---------- impressão da comanda ---------- */
+const fila = []; let imprimindo = false;
+function imprimir(p, forcar) {
+  if (!p || (!forcar && fila.some(x => x.p === p.p))) return;
+  fila.push(p); proxima();
+}
+function proxima() {
+  if (imprimindo || !fila.length) return;
+  imprimindo = true;
+  const p = fila.shift();
+  $("#print").innerHTML = ticket(p);
+  impressos.add(p.p); ls.set("bravio_impressos", [...impressos].slice(-300));
+  setTimeout(() => { window.print(); setTimeout(() => { imprimindo = false; proxima(); }, 400); }, 100);
+}
+function ticket(p) {
+  const dt = new Date(p.t);
+  const data = dt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const pago = p.pg.m === "online";
+  const nItens = p.i.reduce((s, i) => s + i[0], 0);
+  return `<div class="ticket">
+    <div class="c nome">BRAVIO FOOD HOUSE</div>
+    <div class="c">DELIVERY · PEDIDO PELO SITE</div>
+    <hr class="solid">
+    <div class="c">PEDIDO</div><div class="c big">#${esc(p.n)}</div>
+    <div class="row"><span>${data}</span><span>${hora(p.t)}</span></div>
+    <hr class="solid">
+    ${p.i.map(i => `<div class="it"><div class="row"><span class="q">${i[0]}x ${esc(i[1]).toUpperCase()}</span><span>${brl(i[3])}</span></div>
+      ${i[4].map(o => `<div class="op">- ${esc(o)}</div>`).join("")}${i[5] ? `<div class="ob">&gt;&gt; OBS: ${esc(i[5])}</div>` : ""}</div>`).join("<hr>")}
+    <hr class="solid">
+    <div class="row"><span>Itens (${nItens})</span><span>${brl(p.s)}</span></div>
+    <div class="row"><span>Entrega (${String(p.km).replace(".", ",")} km)</span><span>${p.f ? brl(p.f) : "GRÁTIS"}</span></div>
+    <div class="row tt"><span>TOTAL</span><span>${brl(p.tot)}</span></div>
+    ${pago ? `<div class="inv">PAGO ONLINE · ${esc(p.pg.d).toUpperCase()}</div><div class="box">NÃO COBRAR NA ENTREGA</div>`
+           : `<div class="box">COBRAR NA ENTREGA<br>${esc(p.pg.d).toUpperCase()} · ${brl(p.tot)}${p.pg.d === "Dinheiro" ? (p.pg.troco ? `<br>CLIENTE PAGA COM ${brl(p.pg.troco)}<br>LEVAR TROCO DE ${brl(p.pg.troco - p.tot)}` : "<br>SEM TROCO") : ""}${/Cartão/.test(p.pg.d) ? "<br>LEVAR MAQUININHA" : ""}</div>`}
+    ${p.o ? `<hr><div><b>OBS DO PEDIDO:</b> ${esc(p.o)}</div>` : ""}
+    <hr class="solid">
+    <div><b>CLIENTE:</b> ${esc(p.c.n)}</div>
+    <div><b>TEL:</b> ${esc(p.c.f)}</div>
+    <div><b>END:</b> ${esc(p.c.e)}</div>
+    <div><b>BAIRRO:</b> ${esc(p.c.b)}${p.c.cep ? " · CEP " + esc(p.c.cep) : ""}</div>
+    ${p.c.r ? `<div><b>REF:</b> ${esc(p.c.r)}</div>` : ""}
+    <hr><div class="c">Obrigado pela preferência!</div>
+  </div>`;
+}
+
+setInterval(() => { if (!$("#app").hidden) render(); }, 60000);   // atualiza os "min" na tela
+if (senha) carregar(true).then(r => r === 200 ? entrar() : null);
+})();
+</script>
+</body>
+</html>

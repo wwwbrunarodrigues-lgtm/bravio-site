@@ -327,15 +327,8 @@ function stepRevisao() {
     $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><button class="primary" type="button" id="payBtn"><span>Pagar com cartão ${brl(totalPedido())}</span><span>→</span></button>`;
     $("#payBtn").onclick = telaCartao;
   } else {
-    $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><a class="primary wa" id="sendWa" href="#" target="_blank" rel="noopener" aria-disabled="true" style="opacity:.6;pointer-events:none"><span>Preparando pedido…</span><span>${brl(totalPedido())}</span></a>`;
-    let assin = null;
-    assinarPedido(null).then(a => {
-      assin = a;
-      const el = $("#sendWa"); if (!el) return;
-      el.href = waLink(mensagem(null, assin)); el.style.opacity = ""; el.style.pointerEvents = ""; el.removeAttribute("aria-disabled");
-      el.firstElementChild.textContent = "Enviar no WhatsApp";
-    });
-    $("#sendWa").onclick = () => { px("Lead", { value: totalPedido(), currency: "BRL" }); const m = mensagem(null, assin); setTimeout(() => telaEnviado(m, false), 300); };
+    $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><button class="primary" type="button" id="confirmBtn"><span>Confirmar pedido</span><span>${brl(totalPedido())}</span></button>`;
+    $("#confirmBtn").onclick = confirmarEntrega;
   }
   $("#back").onclick = () => goto(3);
 }
@@ -488,19 +481,12 @@ async function pagarOnline() {
 }
 
 /* ---------- mensagem do WhatsApp ---------- */
-function mensagem(pago, assin) {
+function mensagem(pago, reg) {
   const c = cliente, L = linhas(), st = subtotal();
   const M = [];
-  const num = assin ? assin.pedido : pago ? pago.pedido : "";
-  M.push(`*NOVO PEDIDO${num ? " #" + num.slice(-6) : ""} · ${CONFIG.nome.toUpperCase()}*`);
-  if (assin) {
-    M.push("");
-    M.push("🔒 *Comanda oficial (não editável) — abrir e imprimir:*");
-    M.push(assin.link);
-    M.push(`Cód. de verificação: *${assin.codigo}*`);
-    M.push("_Se o texto abaixo for diferente da comanda, vale a comanda._");
-    M.push("──────────");
-  }
+  const num = reg ? reg.numero : "";
+  M.push(`*${reg ? "PEDIDO #" + num : "NOVO PEDIDO"} · ${CONFIG.nome.toUpperCase()}*`);
+  if (reg) M.push("_Pedido registrado no sistema da loja._");
   M.push("");
   L.forEach(i => { M.push(`*${i.qty}x ${i.nome}* · ${brl(i.total)}`); optText(i).forEach(t => M.push(`   - ${t}`)); });
   M.push("");
@@ -525,8 +511,8 @@ function mensagem(pago, assin) {
 }
 const waLink = msg => `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(msg)}`;
 
-/* ---------- comanda oficial assinada pelo servidor ---------- */
-async function assinarPedido(pago) {
+/* ---------- registra o pedido no painel da loja ---------- */
+async function registrarPedido(pago) {
   const body = {
     itens: cart.map(i => ({ id: i.id, qty: i.qty, sel: i.sel, obs: i.obs })),
     cliente: { nome: cliente.nome, fone: cliente.fone, rua: cliente.rua, numero: cliente.num, comp: cliente.comp, bairro: cliente.bairro, ref: cliente.ref, obs: cliente.obs },
@@ -535,24 +521,44 @@ async function assinarPedido(pago) {
     pagamento: pago ? { modo: "online", id: pago.id } : { modo: "entrega", forma: cliente.pag, troco: parseFloat(String(cliente.troco || "").replace(",", ".")) || 0 }
   };
   try {
-    const r = await api("assinar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const r = await api("registrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     return r && r.ok ? r : null;
   } catch (e) { return null; }
 }
 async function finalizar(pago) {
   $("#cSteps").innerHTML = ""; $("#cFoot").innerHTML = "";
-  $("#cBody").innerHTML = `<div class="sent"><div class="okbadge">Pagamento aprovado</div><h4>Gerando sua comanda…</h4></div>`;
-  const assin = await assinarPedido(pago);
-  telaEnviado(mensagem(pago, assin), true);
+  $("#cBody").innerHTML = `<div class="sent"><div class="okbadge">Pagamento aprovado</div><h4>Enviando para a cozinha…</h4></div>`;
+  const reg = await registrarPedido(pago);
+  telaConfirmado(pago, reg);
+}
+async function confirmarEntrega() {
+  const btn = $("#confirmBtn"); btn.disabled = true; btn.firstElementChild.textContent = "Enviando pedido…";
+  px("Lead", { value: totalPedido(), currency: "BRL" });
+  const reg = await registrarPedido(null);
+  telaConfirmado(null, reg);
+}
+// Tela final. Com o pedido registrado, o WhatsApp vira só um aviso opcional.
+function telaConfirmado(pago, reg) {
+  if (!reg) return telaEnviado(mensagem(pago, null), !!pago, true);   // sem servidor: envia tudo pelo WhatsApp
+  const msg = mensagem(pago, reg);
+  $("#cSteps").innerHTML = "";
+  $("#cBody").innerHTML = `<div class="sent">${pago ? `<div class="okbadge">Pagamento aprovado</div>` : ""}
+    <h4>Pedido #${esc(reg.numero)} confirmado!</h4>
+    <p>Seu pedido já chegou na nossa cozinha. ${pago ? "Está pago, é só aguardar a entrega." : `Pagamento na entrega: <b>${esc(cliente.pag)}</b>.`}</p>
+    <p class="hint">Previsão e dúvidas pelo WhatsApp <b>${esc(CONFIG.telefone)}</b>.</p></div>`;
+  $("#cFoot").innerHTML = `<a class="ghost" id="sendWa" href="${waLink(msg)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">Falar no WhatsApp</a><button class="primary" type="button" id="novo"><span>Fazer novo pedido</span><span>→</span></button>`;
+  cart = []; frete = null; step = 1; store.set("bravio_cart2", cart); renderBar(); store.del("bravio_pendente");
+  $("#novo").onclick = () => hide("#cartOv");
 }
 
-function telaEnviado(msg, pago) {
+function telaEnviado(msg, pago, enviar) {
   $("#cSteps").innerHTML = "";
   $("#cBody").innerHTML = `<div class="sent">${pago ? `<div class="okbadge">Pagamento aprovado</div>` : ""}<h4>${pago ? "Falta só um toque!" : "Pedido pronto!"}</h4>
     <p>${pago ? "Seu pagamento foi confirmado. <b>Envie o pedido no WhatsApp</b> para a cozinha começar." : "O WhatsApp abriu com o seu pedido. <b>Toque em enviar</b> por lá para confirmar."}</p>
     <p class="hint">Se o WhatsApp não abrir, copie o pedido e mande para <b>${esc(CONFIG.telefone)}</b>.</p>
     <pre class="msg" id="msgTxt">${esc(msg)}</pre></div>`;
-  $("#cFoot").innerHTML = pago
+  if (enviar && !pago) $("#cBody").querySelector("p").innerHTML = "Toque em <b>Enviar no WhatsApp</b> para confirmar o seu pedido.";
+  $("#cFoot").innerHTML = (pago || enviar)
     ? `<button class="ghost" type="button" id="copyMsg">Copiar</button><a class="primary wa" id="sendWa" href="${waLink(msg)}" target="_blank" rel="noopener"><span>Enviar no WhatsApp</span><span>→</span></a>`
     : `<button class="ghost" type="button" id="copyMsg">Copiar pedido</button><button class="primary" type="button" id="novo"><span>Novo pedido</span><span>→</span></button>`;
   $("#copyMsg").onclick = async () => {
@@ -560,7 +566,7 @@ function telaEnviado(msg, pago) {
     catch (err) { const r = document.createRange(); r.selectNodeContents($("#msgTxt")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Texto selecionado, copie com Ctrl+C"); }
   };
   if ($("#novo")) $("#novo").onclick = () => { cart = []; frete = null; step = 1; saveCart(); hide("#cartOv"); };
-  if (pago) $("#sendWa").onclick = () => { setTimeout(() => { cart = []; frete = null; step = 1; saveCart(); store.del("bravio_pendente"); }, 500); };
+  if (pago || enviar) $("#sendWa").onclick = () => { setTimeout(() => { cart = []; frete = null; step = 1; saveCart(); store.del("bravio_pendente"); }, 500); };
 }
 
 /* ---------- retorno do Mercado Pago ---------- */
