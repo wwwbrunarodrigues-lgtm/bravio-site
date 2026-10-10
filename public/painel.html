@@ -119,6 +119,8 @@ main{padding:16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap
     <label class="tog"><input type="checkbox" id="autoPrint"> Imprimir sozinho</label>
     <label class="tog"><input type="checkbox" id="somOn" checked> Som</label>
     <button class="btn" type="button" id="papel">Papel 80 mm</button>
+    <button class="btn" type="button" id="testeImp">Testar impressora</button>
+    <button class="btn" type="button" id="testeSom">Testar som</button>
     <button class="btn" type="button" id="sair">Sair</button>
   </header>
   <div class="aviso som" id="avisoSom">Toque aqui para ativar o som de novos pedidos</div>
@@ -159,18 +161,29 @@ function entrar() { $("#login").hidden = true; $("#app").hidden = false; ciclo()
 
 /* ---------- preferências do aparelho ---------- */
 $("#dia").value = hojeBR();
-$("#dia").onchange = () => carregar();
+let seguirHoje = true;   // vira o dia sozinho à meia-noite, a menos que alguém escolha outra data
+$("#dia").onchange = () => { seguirHoje = $("#dia").value === hojeBR(); carregar(); };
 $("#autoPrint").checked = ls.get("bravio_autoprint", false);
 $("#autoPrint").onchange = e => ls.set("bravio_autoprint", e.target.checked);
 $("#somOn").checked = ls.get("bravio_som", true);
 $("#somOn").onchange = e => { ls.set("bravio_som", e.target.checked); if (!e.target.checked) pararSom(); };
 let papel = ls.get("bravio_papel", "80");
 function aplicaPapel() { document.documentElement.style.setProperty("--w", papel + "mm"); document.body.classList.toggle("w58", papel === "58"); $("#papel").textContent = "Papel " + papel + " mm"; }
+$("#testeImp").onclick = () => imprimir({ p: "TESTE" + Date.now(), n: "TESTE", t: Date.now(), st: "novo",
+  i: [[1, "Teste de impressão", 0, 0, ["Se esta comanda saiu sem abrir janela, está tudo certo"], ""]],
+  s: 0, f: 0, km: 0, tot: 0, c: { n: "Bravio Food House", f: "-", e: "-", b: "-", r: "", cep: "" }, o: "", pg: { m: "entrega", d: "Pix" }, g: [0, 0] }, true);
+$("#testeSom").onclick = () => { ligarSom(); setTimeout(bip, 350); };
 $("#papel").onclick = () => { papel = papel === "80" ? "58" : "80"; ls.set("bravio_papel", papel); aplicaPapel(); };
 aplicaPapel();
 
 /* ---------- som de campainha (toca até alguém aceitar) ---------- */
 let ctx = null, somTimer = null;
+function ligarSom() {
+  try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state !== "running") ctx.resume(); } catch (e) {}
+  setTimeout(() => { $("#avisoSom").hidden = !!(ctx && ctx.state === "running"); }, 300);
+}
+ligarSom();
+document.addEventListener("click", () => { if (!ctx || ctx.state !== "running") ligarSom(); }, { capture: true });
 $("#avisoSom").onclick = () => { try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); } catch (e) {} $("#avisoSom").hidden = true; bip(); };
 function bip() {
   if (!ctx) return;
@@ -188,6 +201,7 @@ function pararSom() { clearInterval(somTimer); somTimer = null; }
 /* ---------- dados ---------- */
 async function carregar(teste) {
   try {
+    if (seguirHoje && $("#dia").value !== hojeBR()) $("#dia").value = hojeBR();
     const r = await fetch("/api/pedidos?dia=" + encodeURIComponent($("#dia").value || hojeBR()), { headers: { "x-senha": senha }, cache: "no-store" });
     if (r.status === 401 || r.status === 500) { if (!teste) { ls.set("bravio_painel_senha", ""); location.reload(); } return r.status; }
     const j = await r.json();
@@ -202,7 +216,7 @@ async function carregar(teste) {
     return 0;
   }
 }
-function ciclo() { carregar(); clearInterval(timer); timer = setInterval(carregar, 8000); }
+function ciclo() { carregar(); clearInterval(timer); timer = setInterval(carregar, 6000); }
 
 function novidades() {
   const novos = pedidos.filter(p => p.st === "novo");
