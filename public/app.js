@@ -31,7 +31,7 @@ if (CONFIG.metaPixelId) {
 /* ---------- estado ---------- */
 // item: { key, id, qty, sel: [[...]], obs }
 let cart = store.get("bravio_cart2", []).filter(i => { try { precificar(i); return true; } catch (e) { return false; } });
-let cliente = Object.assign({ nome: "", fone: "", cep: "", rua: "", num: "", comp: "", bairro: "", ref: "", pagModo: CONFIG.pagamentoOnline ? "online" : "entrega", pag: "Pix", troco: "", obs: "" }, store.get("bravio_cliente2", {}));
+let cliente = Object.assign({ nome: "", fone: "", cep: "", rua: "", num: "", comp: "", bairro: "", ref: "", pagModo: CONFIG.pagamentoOnline ? "pix" : "entrega", pag: "Pix", troco: "", obs: "" }, store.get("bravio_cliente2", {}));
 let frete = null;     // { km, taxa, atende, lat, lng, gratis }
 let gps = null;       // { lat, lng } se o cliente usou a localização
 let step = 1;
@@ -280,10 +280,14 @@ async function buscarCep(cep) {
 function stepPagamento() {
   const c = cliente;
   const on = CONFIG.pagamentoOnline && onlineOk, off = CONFIG.pagamentoNaEntrega || !on;
-  if (!on) c.pagModo = "entrega"; if (!off) c.pagModo = "online";
+  if (!on && c.pagModo !== "entrega") c.pagModo = "entrega";
+  if (on && !["pix", "online", "entrega"].includes(c.pagModo)) c.pagModo = "pix";
+  if (!off && c.pagModo === "entrega") c.pagModo = "pix";
   $("#cBody").innerHTML = `
     <h4 class="h4">Como você quer pagar?</h4>
-    ${on ? `<label class="opt big"><input type="radio" name="pagModo" value="online" ${c.pagModo === "online" ? "checked" : ""}><span><b>Pagar agora pelo site</b><small>Pix ou cartão de crédito/débito · Mercado Pago</small></span></label>` : ""}
+    ${on ? `<label class="opt big"><input type="radio" name="pagModo" value="pix" ${c.pagModo === "pix" ? "checked" : ""}><span><b>Pix agora</b><small>O QR Code e o código copia e cola aparecem aqui mesmo. Não precisa de conta no Mercado Pago.</small></span></label>
+    <div id="pixBox" ${c.pagModo === "pix" ? "" : "hidden"} style="margin:0 0 8px 12px"><label class="fl" for="cEmail">Seu e-mail (para o comprovante)</label><input class="in" id="cEmail" data-k="email" type="email" inputmode="email" autocomplete="email" placeholder="voce@email.com" value="${esc(c.email || "")}"></div>
+    <label class="opt big"><input type="radio" name="pagModo" value="online" ${c.pagModo === "online" ? "checked" : ""}><span><b>Cartão online</b><small>Crédito ou débito. Você digita o cartão na página segura do Mercado Pago, sem precisar criar conta.</small></span></label>` : ""}
     ${off ? `<label class="opt big"><input type="radio" name="pagModo" value="entrega" ${c.pagModo === "entrega" ? "checked" : ""}><span><b>Pagar na entrega</b><small>Pix, cartão ou dinheiro para o entregador</small></span></label>` : ""}
     <div id="offBox" ${c.pagModo === "entrega" ? "" : "hidden"}>
       <div class="pay">${["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro"].map((p, i) => `<label class="opt"><input type="radio" name="pag" id="pag${i}" value="${p}" ${c.pag === p ? "checked" : ""}><span>${p}</span></label>`).join("")}</div>
@@ -296,6 +300,7 @@ function stepPagamento() {
   $("#toRev").onclick = () => {
     const tr = parseFloat(String(c.troco).replace(",", "."));
     if (c.pagModo === "entrega" && c.pag === "Dinheiro" && c.troco && !(tr >= totalPedido())) { $("#cTroco").classList.add("bad"); return mostrarErros(["O valor do troco precisa ser maior que o total."]); }
+    if (c.pagModo === "pix" && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(c.email || "").trim())) { $("#cEmail").classList.add("bad"); return mostrarErros(["Informe seu e-mail para receber o comprovante do Pix."]); }
     goto(4);
   };
 }
@@ -303,11 +308,11 @@ const totalPedido = () => r2(subtotal() + (frete?.taxa || 0));
 
 /* 4. revisão */
 function stepRevisao() {
-  const c = cliente, L = linhas(), online = c.pagModo === "online";
+  const c = cliente, L = linhas(), online = c.pagModo === "online", pix = c.pagModo === "pix";
   $("#cBody").innerHTML = `
     <div class="rev">${L.map(i => `<div class="rev-i"><span><b>${i.qty}× ${esc(i.nome)}</b>${optText(i).map(t => `<small>${esc(t)}</small>`).join("")}</span><span>${brl(i.total)}</span></div>`).join("")}</div>
     <div class="rev-b"><h5>Entrega</h5><p>${esc(c.nome)} · ${esc(c.fone)}<br>${esc(c.rua)}, ${esc(c.num)}${c.comp ? " · " + esc(c.comp) : ""}<br>${esc(c.bairro)}${c.ref ? " · " + esc(c.ref) : ""}</p><button class="link" type="button" data-go="2">Alterar</button></div>
-    <div class="rev-b"><h5>Pagamento</h5><p>${online ? "Online agora (Pix ou cartão)" : "Na entrega · " + esc(c.pag) + (c.pag === "Dinheiro" ? (c.troco ? " · troco para " + brl(parseFloat(String(c.troco).replace(",", "."))) : " · sem troco") : "")}</p><button class="link" type="button" data-go="3">Alterar</button></div>
+    <div class="rev-b"><h5>Pagamento</h5><p>${pix ? "Pix agora, pelo site" : online ? "Cartão online (Mercado Pago)" : "Na entrega · " + esc(c.pag) + (c.pag === "Dinheiro" ? (c.troco ? " · troco para " + brl(parseFloat(String(c.troco).replace(",", "."))) : " · sem troco") : "")}</p><button class="link" type="button" data-go="3">Alterar</button></div>
     <div class="totals">
       <div><span>Produtos</span><span>${brl(subtotal())}</span></div>
       <div><span>Entrega (${String(frete.km).replace(".", ",")} km)</span><span>${frete.gratis ? "Grátis" : brl(frete.taxa)}</span></div>
@@ -315,7 +320,10 @@ function stepRevisao() {
     </div>
     <div class="err" id="cErr" hidden></div>`;
   $("#cBody").querySelectorAll("[data-go]").forEach(b => b.onclick = () => goto(+b.dataset.go));
-  if (online) {
+  if (pix) {
+    $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><button class="primary" type="button" id="payBtn"><span>Gerar Pix ${brl(totalPedido())}</span><span>→</span></button>`;
+    $("#payBtn").onclick = pagarPix;
+  } else if (online) {
     $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><button class="primary" type="button" id="payBtn"><span>Pagar ${brl(totalPedido())}</span><span>→</span></button>`;
     $("#payBtn").onclick = pagarOnline;
   } else {
@@ -323,6 +331,72 @@ function stepRevisao() {
     $("#sendWa").onclick = () => { px("Lead", { value: totalPedido(), currency: "BRL" }); setTimeout(() => telaEnviado(mensagem(), false), 300); };
   }
   $("#back").onclick = () => goto(3);
+}
+
+/* ---------- Pix direto no site ---------- */
+let pixTimer = null;
+async function pagarPix() {
+  const btn = $("#payBtn"); btn.disabled = true; btn.firstElementChild.textContent = "Gerando Pix…";
+  px("InitiateCheckout", { value: totalPedido(), currency: "BRL", num_items: cart.length });
+  const body = {
+    itens: cart.map(i => ({ id: i.id, qty: i.qty, sel: i.sel, obs: i.obs })),
+    cliente: { nome: cliente.nome, fone: cliente.fone, rua: cliente.rua, numero: cliente.num, comp: cliente.comp, bairro: cliente.bairro, ref: cliente.ref, obs: cliente.obs },
+    entrega: { lat: frete.lat, lng: frete.lng },
+    email: cliente.email
+  };
+  const r = await api("pix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => ({ erro: "Sem conexão. Tente de novo." }));
+  if (!r.ok) { btn.disabled = false; btn.firstElementChild.textContent = "Gerar Pix " + brl(totalPedido()); return mostrarErros([r.erro]); }
+  const pend = { pix: true, pedido: r.pedido, id: r.id, qr: r.qr, qr64: r.qr64, expira: r.expira, total: r.total, cart, cliente, frete };
+  store.set("bravio_pendente", pend);
+  telaPix(pend);
+}
+function telaPix(p) {
+  clearInterval(pixTimer);
+  $("#cSteps").innerHTML = "";
+  $("#cBody").innerHTML = `<div class="pixw">
+    <h4>Pague com Pix</h4>
+    <p class="pix-v">${brl(p.total)}</p>
+    <p class="hint" style="margin-top:0">Abra o app do seu banco, escolha <b>Pix › Pagar com QR Code</b> ou <b>Pix Copia e Cola</b>.</p>
+    ${p.qr64 ? `<img class="pix-qr" src="data:image/png;base64,${p.qr64}" alt="QR Code do Pix">` : ""}
+    <label class="fl" for="pixCode" style="text-align:left">Pix Copia e Cola</label>
+    <textarea class="in pix-code" id="pixCode" readonly rows="3">${esc(p.qr)}</textarea>
+    <button class="primary" type="button" id="copyPix" style="width:100%;justify-content:center;margin-top:8px">Copiar código Pix</button>
+    <div class="pix-st" id="pixSt"><span class="spin"></span><span>Aguardando pagamento… <b id="pixTime"></b></span></div>
+    <p class="hint">Assim que o banco confirmar, esta tela muda sozinha. Não feche a página.</p>
+  </div>`;
+  $("#cFoot").innerHTML = `<button class="ghost" type="button" id="pixCancel" style="width:100%">Escolher outra forma de pagamento</button>`;
+  $("#copyPix").onclick = async () => {
+    try { await navigator.clipboard.writeText(p.qr); toast("Código Pix copiado"); }
+    catch (e) { const t = $("#pixCode"); t.focus(); t.select(); toast("Código selecionado, copie com Ctrl+C"); }
+  };
+  $("#pixCancel").onclick = () => { clearInterval(pixTimer); store.del("bravio_pendente"); step = 3; renderCheckout(); };
+  const fim = new Date(p.expira).getTime();
+  let checando = false, n = 0;
+  const tick = async () => {
+    const rest = Math.max(0, fim - Date.now());
+    const el = $("#pixTime"); if (el) el.textContent = `expira em ${String(Math.floor(rest / 60000)).padStart(2, "0")}:${String(Math.floor(rest / 1000) % 60).padStart(2, "0")}`;
+    if (rest <= 0) {
+      clearInterval(pixTimer); store.del("bravio_pendente");
+      $("#pixSt").innerHTML = `<span>Este Pix expirou.</span>`;
+      $("#cFoot").innerHTML = `<button class="primary" type="button" id="pixNovo"><span>Gerar novo Pix</span><span>↻</span></button>`;
+      $("#pixNovo").onclick = () => { step = 4; renderCheckout(); };
+      return;
+    }
+    if (checando || (n++ % 4)) return;   // consulta o status a cada ~4 s
+    checando = true;
+    const s = await api("status?payment_id=" + p.id).catch(() => ({}));
+    checando = false;
+    if (s.status === "approved" && s.pedido === p.pedido) {
+      clearInterval(pixTimer);
+      px("Purchase", { value: s.valor, currency: "BRL" });
+      if ($("#cartOv").hidden) show("#cartOv");
+      telaEnviado(mensagem({ pedido: s.pedido, id: s.id, metodo: "bank_transfer" }), true);
+    } else if (s.status === "cancelled" || s.status === "rejected") {
+      clearInterval(pixTimer); store.del("bravio_pendente");
+      $("#pixSt").innerHTML = `<span>Pix cancelado. Gere um novo ou escolha outra forma de pagamento.</span>`;
+    }
+  };
+  pixTimer = setInterval(tick, 1000); tick();
 }
 
 async function pagarOnline() {
@@ -431,7 +505,7 @@ function onField(e) {
     if (k === "cep" && e.type === "input" && v.length === 9) buscarCep(v.replace("-", ""));
   }
   if (t.name === "pag") { cliente.pag = t.value; $("#trocoBox").hidden = cliente.pag !== "Dinheiro"; }
-  if (t.name === "pagModo") { cliente.pagModo = t.value; $("#offBox").hidden = t.value !== "entrega"; }
+  if (t.name === "pagModo") { cliente.pagModo = t.value; $("#offBox").hidden = t.value !== "entrega"; if ($("#pixBox")) $("#pixBox").hidden = t.value !== "pix"; }
   saveCli();
 }
 $("#cBody").addEventListener("input", onField);
@@ -454,4 +528,12 @@ if (CONFIG.pagamentoOnline && location.protocol.startsWith("http")) {
 }
 
 renderMenu(); renderBar(); retornoPagamento();
+
+// Se o cliente recarregou a página com um Pix em aberto, volta para a tela do QR Code
+(function retomarPix() {
+  const p = store.get("bravio_pendente", null);
+  if (!p || !p.pix || new Date(p.expira).getTime() < Date.now() || location.search) return;
+  cart = p.cart; cliente = p.cliente; frete = p.frete; saveCart();
+  show("#cartOv"); telaPix(p);
+})();
 })();
