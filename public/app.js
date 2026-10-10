@@ -281,13 +281,13 @@ function stepPagamento() {
   const c = cliente;
   const on = CONFIG.pagamentoOnline && onlineOk, off = CONFIG.pagamentoNaEntrega || !on;
   if (!on && c.pagModo !== "entrega") c.pagModo = "entrega";
-  if (on && !["pix", "online", "entrega"].includes(c.pagModo)) c.pagModo = "pix";
+  if (on && !["pix", "cartao", "entrega"].includes(c.pagModo)) c.pagModo = "pix";
   if (!off && c.pagModo === "entrega") c.pagModo = "pix";
   $("#cBody").innerHTML = `
     <h4 class="h4">Como você quer pagar?</h4>
     ${on ? `<label class="opt big"><input type="radio" name="pagModo" value="pix" ${c.pagModo === "pix" ? "checked" : ""}><span><b>Pix agora</b><small>O QR Code e o código copia e cola aparecem aqui mesmo. Não precisa de conta no Mercado Pago.</small></span></label>
     <div id="pixBox" ${c.pagModo === "pix" ? "" : "hidden"} style="margin:0 0 8px 12px"><label class="fl" for="cEmail">Seu e-mail (para o comprovante)</label><input class="in" id="cEmail" data-k="email" type="email" inputmode="email" autocomplete="email" placeholder="voce@email.com" value="${esc(c.email || "")}"></div>
-    <label class="opt big"><input type="radio" name="pagModo" value="online" ${c.pagModo === "online" ? "checked" : ""}><span><b>Cartão online</b><small>Crédito ou débito. Você digita o cartão na página segura do Mercado Pago, sem precisar criar conta.</small></span></label>` : ""}
+    <label class="opt big"><input type="radio" name="pagModo" value="cartao" ${c.pagModo === "cartao" ? "checked" : ""}><span><b>Cartão de crédito ou débito</b><small>Você digita o cartão aqui mesmo, no site. Sem conta e sem sair da página.</small></span></label>` : ""}
     ${off ? `<label class="opt big"><input type="radio" name="pagModo" value="entrega" ${c.pagModo === "entrega" ? "checked" : ""}><span><b>Pagar na entrega</b><small>Pix, cartão ou dinheiro para o entregador</small></span></label>` : ""}
     <div id="offBox" ${c.pagModo === "entrega" ? "" : "hidden"}>
       <div class="pay">${["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro"].map((p, i) => `<label class="opt"><input type="radio" name="pag" id="pag${i}" value="${p}" ${c.pag === p ? "checked" : ""}><span>${p}</span></label>`).join("")}</div>
@@ -308,11 +308,11 @@ const totalPedido = () => r2(subtotal() + (frete?.taxa || 0));
 
 /* 4. revisão */
 function stepRevisao() {
-  const c = cliente, L = linhas(), online = c.pagModo === "online", pix = c.pagModo === "pix";
+  const c = cliente, L = linhas(), online = c.pagModo === "cartao", pix = c.pagModo === "pix";
   $("#cBody").innerHTML = `
     <div class="rev">${L.map(i => `<div class="rev-i"><span><b>${i.qty}× ${esc(i.nome)}</b>${optText(i).map(t => `<small>${esc(t)}</small>`).join("")}</span><span>${brl(i.total)}</span></div>`).join("")}</div>
     <div class="rev-b"><h5>Entrega</h5><p>${esc(c.nome)} · ${esc(c.fone)}<br>${esc(c.rua)}, ${esc(c.num)}${c.comp ? " · " + esc(c.comp) : ""}<br>${esc(c.bairro)}${c.ref ? " · " + esc(c.ref) : ""}</p><button class="link" type="button" data-go="2">Alterar</button></div>
-    <div class="rev-b"><h5>Pagamento</h5><p>${pix ? "Pix agora, pelo site" : online ? "Cartão online (Mercado Pago)" : "Na entrega · " + esc(c.pag) + (c.pag === "Dinheiro" ? (c.troco ? " · troco para " + brl(parseFloat(String(c.troco).replace(",", "."))) : " · sem troco") : "")}</p><button class="link" type="button" data-go="3">Alterar</button></div>
+    <div class="rev-b"><h5>Pagamento</h5><p>${pix ? "Pix agora, pelo site" : online ? "Cartão agora, pelo site" : "Na entrega · " + esc(c.pag) + (c.pag === "Dinheiro" ? (c.troco ? " · troco para " + brl(parseFloat(String(c.troco).replace(",", "."))) : " · sem troco") : "")}</p><button class="link" type="button" data-go="3">Alterar</button></div>
     <div class="totals">
       <div><span>Produtos</span><span>${brl(subtotal())}</span></div>
       <div><span>Entrega (${String(frete.km).replace(".", ",")} km)</span><span>${frete.gratis ? "Grátis" : brl(frete.taxa)}</span></div>
@@ -324,13 +324,72 @@ function stepRevisao() {
     $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><button class="primary" type="button" id="payBtn"><span>Gerar Pix ${brl(totalPedido())}</span><span>→</span></button>`;
     $("#payBtn").onclick = pagarPix;
   } else if (online) {
-    $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><button class="primary" type="button" id="payBtn"><span>Pagar ${brl(totalPedido())}</span><span>→</span></button>`;
-    $("#payBtn").onclick = pagarOnline;
+    $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><button class="primary" type="button" id="payBtn"><span>Pagar com cartão ${brl(totalPedido())}</span><span>→</span></button>`;
+    $("#payBtn").onclick = telaCartao;
   } else {
     $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><a class="primary wa" id="sendWa" href="${waLink(mensagem())}" target="_blank" rel="noopener"><span>Enviar no WhatsApp</span><span>${brl(totalPedido())}</span></a>`;
     $("#sendWa").onclick = () => { px("Lead", { value: totalPedido(), currency: "BRL" }); setTimeout(() => telaEnviado(mensagem(), false), 300); };
   }
   $("#back").onclick = () => goto(3);
+}
+
+/* ---------- Cartão direto no site (Card Payment Brick do Mercado Pago) ---------- */
+function carregarSdkMP() {
+  if (window.MercadoPago) return Promise.resolve();
+  return new Promise((ok, erro) => {
+    const s = document.createElement("script"); s.src = "https://sdk.mercadopago.com/js/v2";
+    s.onload = ok; s.onerror = () => erro(new Error("sdk")); document.head.appendChild(s);
+  });
+}
+let cardBrick = null;
+async function telaCartao() {
+  const total = totalPedido();
+  px("InitiateCheckout", { value: total, currency: "BRL", num_items: cart.length });
+  $("#cSteps").innerHTML = "";
+  $("#cBody").innerHTML = `<div class="cardw"><h4>Pagar com cartão</h4><p class="pix-v">${brl(total)}</p>
+    <p class="hint" style="margin-top:0">Pagamento seguro processado pelo Mercado Pago. Os dados do cartão não ficam salvos no site.</p>
+    <div id="cardBrick"><div class="pix-st"><span class="spin"></span><span>Carregando formulário…</span></div></div>
+    <div class="err" id="cErr" hidden></div></div>`;
+  $("#cFoot").innerHTML = `<button class="ghost" type="button" id="cardBack" style="width:100%">Escolher outra forma de pagamento</button>`;
+  $("#cardBack").onclick = () => { try { cardBrick && cardBrick.unmount(); } catch (e) {} step = 3; renderCheckout(); };
+  try { await carregarSdkMP(); }
+  catch (e) { $("#cardBrick").innerHTML = ""; return mostrarErros(["Não foi possível carregar o pagamento com cartão. Verifique sua internet ou use o Pix."]); }
+  try { cardBrick && cardBrick.unmount(); } catch (e) {}
+  const mp = new window.MercadoPago(CONFIG.mpPublicKey, { locale: "pt-BR" });
+  $("#cardBrick").innerHTML = "";
+  cardBrick = await mp.bricks().create("cardPayment", "cardBrick", {
+    initialization: { amount: total, payer: { email: cliente.email || "" } },
+    customization: {
+      visual: { style: { theme: "dark", customVariables: { baseColor: "#F2A81D" } }, texts: { formSubmit: "Pagar " + brl(total) } },
+      paymentMethods: { maxInstallments: 1, minInstallments: 1 }
+    },
+    callbacks: {
+      onReady: () => {},
+      onError: (e) => { console.error(e); },
+      onSubmit: (formData) => new Promise(async (resolve, reject) => {
+        mostrarErros([]);
+        const body = {
+          itens: cart.map(i => ({ id: i.id, qty: i.qty, sel: i.sel, obs: i.obs })),
+          cliente: { nome: cliente.nome, fone: cliente.fone, rua: cliente.rua, numero: cliente.num, comp: cliente.comp, bairro: cliente.bairro, ref: cliente.ref, obs: cliente.obs },
+          entrega: { lat: frete.lat, lng: frete.lng },
+          cartao: formData
+        };
+        const r = await api("cartao", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => ({ erro: "Sem conexão. Tente de novo." }));
+        if (r.status === "approved") {
+          resolve();
+          px("Purchase", { value: r.total, currency: "BRL" });
+          try { cardBrick.unmount(); } catch (e) {}
+          telaEnviado(mensagem({ pedido: r.pedido, id: r.id, metodo: r.metodo || "credit_card" }), true);
+        } else if (r.status === "in_process" || r.status === "pending") {
+          resolve();
+          try { cardBrick.unmount(); } catch (e) {}
+          telaPix({ pix: false, pedido: r.pedido, id: r.id, total: r.total, expira: new Date(Date.now() + 30 * 60000).toISOString(), analise: true });
+        } else {
+          reject(); mostrarErros([r.erro || "Cartão recusado. Tente outro cartão ou o Pix."]);
+        }
+      })
+    }
+  });
 }
 
 /* ---------- Pix direto no site ---------- */
@@ -353,6 +412,12 @@ async function pagarPix() {
 function telaPix(p) {
   clearInterval(pixTimer);
   $("#cSteps").innerHTML = "";
+  if (p.analise) {
+    $("#cBody").innerHTML = `<div class="pixw"><h4>Pagamento em análise</h4><p class="pix-v">${brl(p.total)}</p>
+      <p class="hint">O banco está analisando o pagamento com cartão. Isso costuma levar menos de 1 minuto.</p>
+      <div class="pix-st" id="pixSt"><span class="spin"></span><span>Aguardando aprovação… <b id="pixTime"></b></span></div></div>`;
+    $("#cFoot").innerHTML = `<button class="ghost" type="button" id="pixCancel" style="width:100%">Escolher outra forma de pagamento</button>`;
+  } else {
   $("#cBody").innerHTML = `<div class="pixw">
     <h4>Pague com Pix</h4>
     <p class="pix-v">${brl(p.total)}</p>
@@ -365,7 +430,8 @@ function telaPix(p) {
     <p class="hint">Assim que o banco confirmar, esta tela muda sozinha. Não feche a página.</p>
   </div>`;
   $("#cFoot").innerHTML = `<button class="ghost" type="button" id="pixCancel" style="width:100%">Escolher outra forma de pagamento</button>`;
-  $("#copyPix").onclick = async () => {
+  }
+  if ($("#copyPix")) $("#copyPix").onclick = async () => {
     try { await navigator.clipboard.writeText(p.qr); toast("Código Pix copiado"); }
     catch (e) { const t = $("#pixCode"); t.focus(); t.select(); toast("Código selecionado, copie com Ctrl+C"); }
   };
@@ -390,10 +456,10 @@ function telaPix(p) {
       clearInterval(pixTimer);
       px("Purchase", { value: s.valor, currency: "BRL" });
       if ($("#cartOv").hidden) show("#cartOv");
-      telaEnviado(mensagem({ pedido: s.pedido, id: s.id, metodo: "bank_transfer" }), true);
+      telaEnviado(mensagem({ pedido: s.pedido, id: s.id, metodo: s.metodo || "bank_transfer" }), true);
     } else if (s.status === "cancelled" || s.status === "rejected") {
       clearInterval(pixTimer); store.del("bravio_pendente");
-      $("#pixSt").innerHTML = `<span>Pix cancelado. Gere um novo ou escolha outra forma de pagamento.</span>`;
+      $("#pixSt").innerHTML = `<span>${p.analise ? "Pagamento recusado pelo banco. Tente outro cartão ou o Pix." : "Pix cancelado. Gere um novo ou escolha outra forma de pagamento."}</span>`;
     }
   };
   pixTimer = setInterval(tick, 1000); tick();
@@ -427,7 +493,7 @@ function mensagem(pago) {
   M.push(`Entrega (${String(frete.km).replace(".", ",")} km): ${frete.gratis ? "grátis" : brl(frete.taxa)}`);
   M.push(`*Total: ${brl(r2(st + frete.taxa))}*`);
   M.push("");
-  if (pago) M.push(`*PAGO ONLINE* ✅ (${pago.metodo === "bank_transfer" ? "Pix" : "cartão"} · Mercado Pago nº ${pago.id})`);
+  if (pago) M.push(`*PAGO ONLINE* ✅ (${pago.metodo === "bank_transfer" ? "Pix" : pago.metodo === "debit_card" ? "cartão de débito" : "cartão de crédito"} · Mercado Pago nº ${pago.id})`);
   else {
     M.push(`*Pagamento na entrega:* ${c.pag}`);
     if (c.pag === "Dinheiro") M.push(c.troco ? `Troco para ${brl(parseFloat(String(c.troco).replace(",", ".")))}` : "Não precisa de troco");
