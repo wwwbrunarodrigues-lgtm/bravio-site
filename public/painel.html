@@ -72,7 +72,7 @@ main{padding:16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap
 .tot{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .tot strong{font-family:var(--display);font-size:24px;color:var(--gold)}
 .pill{font-size:12px;font-weight:800;border-radius:6px;padding:3px 8px;text-transform:uppercase;letter-spacing:.04em}
-.pill.pago{background:var(--ok);color:#fff}.pill.cobrar{background:var(--gold);color:var(--gold-ink)}
+.pill.pago{background:var(--ok);color:#fff}.pill.ret{background:#7FB3FF;color:#0A0806;display:inline-block;margin-top:3px}.pill.cobrar{background:var(--gold);color:var(--gold-ink)}
 .acts{display:flex;flex-wrap:wrap;gap:6px}
 .acts .btn{font-size:15px;padding:8px 10px;flex:1 1 auto}
 .confirma{background:var(--surface-2);border-radius:10px;padding:10px;font-size:14px;display:flex;flex-direction:column;gap:8px}
@@ -127,7 +127,7 @@ main{padding:16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap
   <main id="cols">
     <section class="col" data-c="novo"><h2>Novos <b id="k-novo">0</b></h2><div id="l-novo"></div></section>
     <section class="col" data-c="preparo"><h2>Em preparo <b id="k-preparo">0</b></h2><div id="l-preparo"></div></section>
-    <section class="col" data-c="saiu"><h2>Saiu p/ entrega <b id="k-saiu">0</b></h2><div id="l-saiu"></div></section>
+    <section class="col" data-c="saiu"><h2>Saiu / Pronto <b id="k-saiu">0</b></h2><div id="l-saiu"></div></section>
     <section class="col" data-c="fim"><h2>Finalizados <b id="k-fim">0</b></h2><div id="l-fim"></div></section>
   </main>
 </div>
@@ -251,19 +251,19 @@ function card(p) {
   const fone = String(p.c.f).replace(/\D/g, "");
   const acao = {
     novo: `<button class="btn ok" data-a="preparo" data-p="${p.p}">Aceitar e imprimir</button>`,
-    preparo: `<button class="btn blue" data-a="saiu" data-p="${p.p}">Saiu para entrega</button>`,
-    saiu: `<button class="btn ok" data-a="entregue" data-p="${p.p}">Entregue</button>`
+    preparo: p.ret ? `<button class="btn blue" data-a="saiu" data-p="${p.p}">Pronto p/ retirada</button>` : `<button class="btn blue" data-a="saiu" data-p="${p.p}">Saiu para entrega</button>`,
+    saiu: `<button class="btn ok" data-a="entregue" data-p="${p.p}">${p.ret ? "Retirado" : "Entregue"}</button>`
   }[p.st] || "";
   return `<article class="card ${p.st}">
     <div class="ch"><span class="num">#${esc(p.n)}</span><span class="hora">${hora(p.t)}<br>${p.st === "entregue" ? "entregue" : p.st === "cancelado" ? "cancelado" : min + " min"}</span></div>
-    <div class="cli">${esc(p.c.n)}<small>${esc(p.c.b)} · ${String(p.km).replace(".", ",")} km</small></div>
+    <div class="cli">${esc(p.c.n)}<small>${p.ret ? '<span class="pill ret">Retirada no local</span>' : `${esc(p.c.b)} · ${String(p.km).replace(".", ",")} km`}</small></div>
     <div class="its">${p.i.map(i => `<div><b>${i[0]}x</b> ${esc(i[1])}${i[4].map(o => `<small>${esc(o)}</small>`).join("")}${i[5] ? `<em>Obs: ${esc(i[5])}</em>` : ""}</div>`).join("")}${p.o ? `<em style="padding:4px 0 0">Obs do pedido: ${esc(p.o)}</em>` : ""}</div>
-    <div class="tot"><strong>${brl(p.tot)}</strong>${pago ? `<span class="pill pago">Pago · ${esc(p.pg.d)}</span>` : `<span class="pill cobrar">Cobrar · ${esc(p.pg.d)}${p.pg.troco ? " · troco p/ " + brl(p.pg.troco) : ""}</span>`}</div>
+    <div class="tot"><strong>${brl(p.tot)}</strong>${pago ? `<span class="pill pago">Pago · ${esc(p.pg.d)}</span>` : `<span class="pill cobrar">Cobrar${p.ret ? " no balcão" : ""} · ${esc(p.pg.d)}${p.pg.troco ? " · troco p/ " + brl(p.pg.troco) : ""}</span>`}</div>
     ${confirmando === p.p ? `<div class="confirma">Cancelar o pedido #${esc(p.n)}?${pago ? " <b>Ele já foi pago: faça a devolução no Mercado Pago.</b>" : ""}<div class="acts"><button class="btn red" data-a="cancelado" data-p="${p.p}">Sim, cancelar</button><button class="btn" data-x="1">Voltar</button></div></div>` : ""}
     <div class="acts">${acao}
       <button class="btn" data-print="${p.p}">Imprimir</button>
       <a class="btn" href="https://wa.me/55${fone}" target="_blank" rel="noopener">WhatsApp</a>
-      <a class="btn" href="https://maps.google.com/?q=${p.g[0]},${p.g[1]}" target="_blank" rel="noopener">Mapa</a>
+      ${p.g ? `<a class="btn" href="https://maps.google.com/?q=${p.g[0]},${p.g[1]}" target="_blank" rel="noopener">Mapa</a>` : ""}
       ${["novo", "preparo", "saiu"].includes(p.st) && confirmando !== p.p ? `<button class="btn red" data-cancel="${p.p}">Cancelar</button>` : ""}
     </div></article>`;
 }
@@ -297,26 +297,27 @@ function ticket(p) {
   const nItens = p.i.reduce((s, i) => s + i[0], 0);
   return `<div class="ticket">
     <div class="c nome">BRAVIO FOOD HOUSE</div>
-    <div class="c">DELIVERY · PEDIDO PELO SITE</div>
+    <div class="c">${p.ret ? "RETIRADA NO LOCAL" : "DELIVERY"} · PEDIDO PELO SITE</div>
     <hr class="solid">
     <div class="c">PEDIDO</div><div class="c big">#${esc(p.n)}</div>
     <div class="row"><span>${data}</span><span>${hora(p.t)}</span></div>
+    ${p.ret ? '<div class="inv">*** RETIRADA NO LOCAL ***</div>' : ""}
     <hr class="solid">
     ${p.i.map(i => `<div class="it"><div class="row"><span class="q">${i[0]}x ${esc(i[1]).toUpperCase()}</span><span>${brl(i[3])}</span></div>
       ${i[4].map(o => `<div class="op">- ${esc(o)}</div>`).join("")}${i[5] ? `<div class="ob">&gt;&gt; OBS: ${esc(i[5])}</div>` : ""}</div>`).join("<hr>")}
     <hr class="solid">
     <div class="row"><span>Itens (${nItens})</span><span>${brl(p.s)}</span></div>
-    <div class="row"><span>Entrega (${String(p.km).replace(".", ",")} km)</span><span>${p.f ? brl(p.f) : "GRÁTIS"}</span></div>
+    ${p.ret ? "" : `<div class="row"><span>Entrega (${String(p.km).replace(".", ",")} km)</span><span>${p.f ? brl(p.f) : "GRÁTIS"}</span></div>`}
     <div class="row tt"><span>TOTAL</span><span>${brl(p.tot)}</span></div>
-    ${pago ? `<div class="inv">PAGO ONLINE · ${esc(p.pg.d).toUpperCase()}</div><div class="box">NÃO COBRAR NA ENTREGA</div>`
-           : `<div class="box">COBRAR NA ENTREGA<br>${esc(p.pg.d).toUpperCase()} · ${brl(p.tot)}${p.pg.d === "Dinheiro" ? (p.pg.troco ? `<br>CLIENTE PAGA COM ${brl(p.pg.troco)}<br>LEVAR TROCO DE ${brl(p.pg.troco - p.tot)}` : "<br>SEM TROCO") : ""}${/Cartão/.test(p.pg.d) ? "<br>LEVAR MAQUININHA" : ""}</div>`}
+    ${pago ? `<div class="inv">PAGO ONLINE · ${esc(p.pg.d).toUpperCase()}</div><div class="box">NÃO COBRAR ${p.ret ? "NA RETIRADA" : "NA ENTREGA"}</div>`
+           : `<div class="box">COBRAR ${p.ret ? "NO BALCÃO" : "NA ENTREGA"}<br>${esc(p.pg.d).toUpperCase()} · ${brl(p.tot)}${p.pg.d === "Dinheiro" ? (p.pg.troco ? `<br>CLIENTE PAGA COM ${brl(p.pg.troco)}<br>LEVAR TROCO DE ${brl(p.pg.troco - p.tot)}` : "<br>SEM TROCO") : ""}${/Cartão/.test(p.pg.d) && !p.ret ? "<br>LEVAR MAQUININHA" : ""}</div>`}
     ${p.o ? `<hr><div><b>OBS DO PEDIDO:</b> ${esc(p.o)}</div>` : ""}
     <hr class="solid">
     <div><b>CLIENTE:</b> ${esc(p.c.n)}</div>
     <div><b>TEL:</b> ${esc(p.c.f)}</div>
-    <div><b>END:</b> ${esc(p.c.e)}</div>
+    ${p.ret ? "<div><b>CLIENTE VAI RETIRAR NA LOJA</b></div>" : `<div><b>END:</b> ${esc(p.c.e)}</div>
     <div><b>BAIRRO:</b> ${esc(p.c.b)}${p.c.cep ? " · CEP " + esc(p.c.cep) : ""}</div>
-    ${p.c.r ? `<div><b>REF:</b> ${esc(p.c.r)}</div>` : ""}
+    ${p.c.r ? `<div><b>REF:</b> ${esc(p.c.r)}</div>` : ""}`}
     <hr><div class="c">Obrigado pela preferência!</div>
   </div>`;
 }

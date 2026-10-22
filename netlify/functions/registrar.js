@@ -69,10 +69,13 @@ exports.handler = async (event) => {
     st: "novo",
     i: p.itens.map(i => [i.qty, i.nome, i.unit, i.total, i.opts.map(o => `${o.g}: ${o.v.join(", ")}`), i.obs]),
     s: p.subtotal, f: p.frete.taxa, km: p.frete.km, tot: p.total,
-    c: { n: corta(c.nome, 60), f: corta(c.fone, 20), e: corta(`${c.rua}, ${c.numero}${c.comp ? " - " + c.comp : ""}`, 140), b: corta(c.bairro, 60), r: corta(c.ref, 100), cep: corta(b.cep, 9) },
+    ret: p.retirada || undefined,                  // true = cliente retira na loja
+    c: p.retirada
+      ? { n: corta(c.nome, 60), f: corta(c.fone, 20), e: "", b: "", r: "", cep: "" }
+      : { n: corta(c.nome, 60), f: corta(c.fone, 20), e: corta(`${c.rua}, ${c.numero}${c.comp ? " - " + c.comp : ""}`, 140), b: corta(c.bairro, 60), r: corta(c.ref, 100), cep: corta(b.cep, 9) },
     o: corta(c.obs, 200),
     pg: pagamento,
-    g: [Number(b.entrega.lat), Number(b.entrega.lng)]
+    g: p.retirada ? null : [Number(b.entrega.lat), Number(b.entrega.lng)]
   };
   try { await db.set(chave, pedido); }
   catch (e) { console.error("Banco de pedidos:", e); return json(500, { erro: "Não foi possível gravar o pedido: " + String(e && e.message || e) }); }

@@ -35,6 +35,8 @@ let cliente = Object.assign({ nome: "", fone: "", cep: "", rua: "", num: "", com
 let frete = null;     // { km, taxa, atende, lat, lng, gratis }
 let gps = null;       // { lat, lng } se o cliente usou a localização
 let step = 1;
+const ehRet = () => CONFIG.retirada !== false && cliente.modo === "retirada";
+const FRETE_RET = { retirada: true, atende: true, taxa: 0, km: 0, lat: 0, lng: 0 };
 const linhas = () => cart.map(i => ({ ...precificar(i), key: i.key }));
 const subtotal = () => r2(linhas().reduce((s, i) => s + i.total, 0));
 const saveCli = () => store.set("bravio_cliente2", cliente);
@@ -140,7 +142,7 @@ $("#pAdd").onclick = () => {
 
 /* ---------- sacola ---------- */
 function saveCart() { store.set("bravio_cart2", cart); renderBar(); if (frete && frete.atende) recalcFreteLocal(); }
-function recalcFreteLocal() { const r = taxaPorKm(frete.km / 1, subtotal()); frete = { ...frete, taxa: r.taxa, gratis: r.gratis }; }
+function recalcFreteLocal() { if (frete && frete.retirada) return; const r = taxaPorKm(frete.km / 1, subtotal()); frete = { ...frete, taxa: r.taxa, gratis: r.gratis }; }
 function renderBar() {
   const n = cart.reduce((s, i) => s + i.qty, 0);
   $("#cartbar").hidden = n === 0;
@@ -148,7 +150,7 @@ function renderBar() {
 }
 const optText = i => i.opts.map(o => `${o.g}: ${o.v.join(", ")}`).concat(i.obs ? [`Obs: ${i.obs}`] : []);
 
-const STEPS = ["Sacola", "Entrega", "Pagamento", "Revisão"];
+const STEPS = ["Sacola", "Receber", "Pagamento", "Revisão"];
 function stepsBar() {
   return `<ol class="steps">${STEPS.map((s, i) => `<li class="${i + 1 === step ? "on" : i + 1 < step ? "done" : ""}"><span>${i + 1}</span>${s}</li>`).join("")}</ol>`;
 }
@@ -177,14 +179,34 @@ function stepSacola() {
     <div class="totals"><div class="t"><span>Subtotal</span><span>${brl(st)}</span></div>
     ${gratisFalta ? `<div class="muted"><span>Faltam ${brl(gratisFalta)} para frete grátis</span></div>` : ""}</div>
     ${falta ? `<div class="err">Pedido mínimo de ${brl(CONFIG.pedidoMinimo)}. Faltam ${brl(falta)}.</div>` : ""}`;
-  $("#cFoot").innerHTML = `<button class="primary" type="button" id="toEntrega" ${falta ? "disabled" : ""}><span>Continuar para entrega</span><span>→</span></button>`;
+  $("#cFoot").innerHTML = `<button class="primary" type="button" id="toEntrega" ${falta ? "disabled" : ""}><span>Continuar</span><span>→</span></button>`;
   $("#toEntrega").onclick = () => goto(2);
 }
 
 /* 2. entrega */
 function stepEntrega() {
   const c = cliente;
-  $("#cBody").innerHTML = `
+  const escolha = CONFIG.retirada !== false ? `
+    <h4 class="h4">Como você quer receber?</h4>
+    <div class="pay">
+      <label class="opt big"><input type="radio" name="modoRec" value="entrega" ${!ehRet() ? "checked" : ""}><span><b>Entrega</b><small>No seu endereço</small></span></label>
+      <label class="opt big"><input type="radio" name="modoRec" value="retirada" ${ehRet() ? "checked" : ""}><span><b>Retirar no local</b><small>Sem taxa de entrega</small></span></label>
+    </div>` : "";
+  if (ehRet()) {
+    frete = { ...FRETE_RET };
+    $("#cBody").innerHTML = escolha + `
+      <h4 class="h4">Seus dados</h4>
+      <div class="row"><div><label class="fl" for="cNome">Nome</label><input class="in" id="cNome" data-k="nome" autocomplete="name" value="${esc(c.nome)}"></div>
+      <div><label class="fl" for="cFone">Telefone / WhatsApp</label><input class="in" id="cFone" data-k="fone" inputmode="tel" autocomplete="tel" placeholder="(41) 99999-9999" value="${esc(c.fone)}"></div></div>
+      <div class="frete ok"><div><b>Retirada no local · sem taxa</b><span>${esc(CONFIG.enderecoRetirada || "")}${CONFIG.tempoRetirada ? " · pronto em " + esc(CONFIG.tempoRetirada) : ""}</span></div><span class="fi">✓</span></div>
+      <div class="err" id="cErr" hidden></div>`;
+    $("#cFoot").innerHTML = `<button class="ghost" type="button" id="back">Voltar</button><button class="primary" type="button" id="toPag"><span>Continuar para pagamento</span><span>→</span></button>`;
+    $("#back").onclick = () => goto(1);
+    $("#toPag").onclick = () => { const e = validarDados(); if (e.length) return mostrarErros(e); goto(3); px("AddPaymentInfo"); };
+    return;
+  }
+  if (frete && frete.retirada) frete = null;
+  $("#cBody").innerHTML = escolha + `
     <h4 class="h4">Seus dados</h4>
     <div class="row"><div><label class="fl" for="cNome">Nome</label><input class="in" id="cNome" data-k="nome" autocomplete="name" value="${esc(c.nome)}"></div>
     <div><label class="fl" for="cFone">Telefone / WhatsApp</label><input class="in" id="cFone" data-k="fone" inputmode="tel" autocomplete="tel" placeholder="(41) 99999-9999" value="${esc(c.fone)}"></div></div>
@@ -216,7 +238,7 @@ function renderFrete() {
     $("#back").onclick = () => goto(1), $("#toPag").onclick = () => { if (validarDados().length) return mostrarErros(validarDados()); goto(3); px("AddPaymentInfo"); };
 }
 function validarDados() {
-  const req = [["cNome", "nome", "seu nome"], ["cFone", "fone", "seu telefone"], ["cRua", "rua", "a rua"], ["cNum", "num", "o número"], ["cBairro", "bairro", "o bairro"]];
+  const req = [["cNome", "nome", "seu nome"], ["cFone", "fone", "seu telefone"]].concat(ehRet() ? [] : [["cRua", "rua", "a rua"], ["cNum", "num", "o número"], ["cBairro", "bairro", "o bairro"]]);
   const falta = [];
   req.forEach(([id, k, lbl]) => { if (!String(cliente[k] || "").trim()) { falta.push(lbl); document.getElementById(id)?.classList.add("bad"); } });
   if (cliente.fone && cliente.fone.replace(/\D/g, "").length < 10) { falta.push("um telefone com DDD"); $("#cFone")?.classList.add("bad"); }
@@ -288,7 +310,7 @@ function stepPagamento() {
     ${on ? `<label class="opt big"><input type="radio" name="pagModo" value="pix" ${c.pagModo === "pix" ? "checked" : ""}><span><b>Pix agora</b><small>O QR Code e o código copia e cola aparecem aqui mesmo. Não precisa de conta no Mercado Pago.</small></span></label>
     <div id="pixBox" ${c.pagModo === "pix" ? "" : "hidden"} style="margin:0 0 8px 12px"><label class="fl" for="cEmail">Seu e-mail (para o comprovante)</label><input class="in" id="cEmail" data-k="email" type="email" inputmode="email" autocomplete="email" placeholder="voce@email.com" value="${esc(c.email || "")}"></div>
     <label class="opt big"><input type="radio" name="pagModo" value="cartao" ${c.pagModo === "cartao" ? "checked" : ""}><span><b>Cartão de crédito ou débito</b><small>Você digita o cartão aqui mesmo, no site. Sem conta e sem sair da página.</small></span></label>` : ""}
-    ${off ? `<label class="opt big"><input type="radio" name="pagModo" value="entrega" ${c.pagModo === "entrega" ? "checked" : ""}><span><b>Pagar na entrega</b><small>Pix, cartão ou dinheiro para o entregador</small></span></label>` : ""}
+    ${off ? `<label class="opt big"><input type="radio" name="pagModo" value="entrega" ${c.pagModo === "entrega" ? "checked" : ""}><span><b>${ehRet() ? "Pagar na retirada" : "Pagar na entrega"}</b><small>${ehRet() ? "Pix, cartão ou dinheiro no balcão" : "Pix, cartão ou dinheiro para o entregador"}</small></span></label>` : ""}
     <div id="offBox" ${c.pagModo === "entrega" ? "" : "hidden"}>
       <div class="pay">${["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro"].map((p, i) => `<label class="opt"><input type="radio" name="pag" id="pag${i}" value="${p}" ${c.pag === p ? "checked" : ""}><span>${p}</span></label>`).join("")}</div>
       <div id="trocoBox" ${c.pag === "Dinheiro" ? "" : "hidden"}><label class="fl" for="cTroco">Troco para quanto?</label><input class="in" id="cTroco" data-k="troco" inputmode="decimal" placeholder="Ex: 100 (deixe vazio se não precisar)" value="${esc(c.troco)}"></div>
@@ -311,11 +333,13 @@ function stepRevisao() {
   const c = cliente, L = linhas(), online = c.pagModo === "cartao", pix = c.pagModo === "pix";
   $("#cBody").innerHTML = `
     <div class="rev">${L.map(i => `<div class="rev-i"><span><b>${i.qty}× ${esc(i.nome)}</b>${optText(i).map(t => `<small>${esc(t)}</small>`).join("")}</span><span>${brl(i.total)}</span></div>`).join("")}</div>
-    <div class="rev-b"><h5>Entrega</h5><p>${esc(c.nome)} · ${esc(c.fone)}<br>${esc(c.rua)}, ${esc(c.num)}${c.comp ? " · " + esc(c.comp) : ""}<br>${esc(c.bairro)}${c.ref ? " · " + esc(c.ref) : ""}</p><button class="link" type="button" data-go="2">Alterar</button></div>
-    <div class="rev-b"><h5>Pagamento</h5><p>${pix ? "Pix agora, pelo site" : online ? "Cartão agora, pelo site" : "Na entrega · " + esc(c.pag) + (c.pag === "Dinheiro" ? (c.troco ? " · troco para " + brl(parseFloat(String(c.troco).replace(",", "."))) : " · sem troco") : "")}</p><button class="link" type="button" data-go="3">Alterar</button></div>
+    ${ehRet()
+      ? `<div class="rev-b"><h5>Retirada no local</h5><p>${esc(c.nome)} · ${esc(c.fone)}<br>${esc(CONFIG.enderecoRetirada || "")}</p><button class="link" type="button" data-go="2">Alterar</button></div>`
+      : `<div class="rev-b"><h5>Entrega</h5><p>${esc(c.nome)} · ${esc(c.fone)}<br>${esc(c.rua)}, ${esc(c.num)}${c.comp ? " · " + esc(c.comp) : ""}<br>${esc(c.bairro)}${c.ref ? " · " + esc(c.ref) : ""}</p><button class="link" type="button" data-go="2">Alterar</button></div>`}
+    <div class="rev-b"><h5>Pagamento</h5><p>${pix ? "Pix agora, pelo site" : online ? "Cartão agora, pelo site" : (ehRet() ? "Na retirada · " : "Na entrega · ") + esc(c.pag) + (c.pag === "Dinheiro" ? (c.troco ? " · troco para " + brl(parseFloat(String(c.troco).replace(",", "."))) : " · sem troco") : "")}</p><button class="link" type="button" data-go="3">Alterar</button></div>
     <div class="totals">
       <div><span>Produtos</span><span>${brl(subtotal())}</span></div>
-      <div><span>Entrega (${String(frete.km).replace(".", ",")} km)</span><span>${frete.gratis ? "Grátis" : brl(frete.taxa)}</span></div>
+      ${ehRet() ? `<div><span>Retirada no local</span><span>Sem taxa</span></div>` : `<div><span>Entrega (${String(frete.km).replace(".", ",")} km)</span><span>${frete.gratis ? "Grátis" : brl(frete.taxa)}</span></div>`}
       <div class="t"><span>Total</span><span>${brl(totalPedido())}</span></div>
     </div>
     <div class="err" id="cErr" hidden></div>`;
@@ -371,7 +395,7 @@ async function telaCartao() {
         const body = {
           itens: cart.map(i => ({ id: i.id, qty: i.qty, sel: i.sel, obs: i.obs })),
           cliente: { nome: cliente.nome, fone: cliente.fone, rua: cliente.rua, numero: cliente.num, comp: cliente.comp, bairro: cliente.bairro, ref: cliente.ref, obs: cliente.obs },
-          entrega: { lat: frete.lat, lng: frete.lng },
+          entrega: { lat: frete.lat, lng: frete.lng }, retirada: ehRet(),
           cartao: formData
         };
         const r = await api("cartao", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => ({ erro: "Sem conexão. Tente de novo." }));
@@ -400,7 +424,7 @@ async function pagarPix() {
   const body = {
     itens: cart.map(i => ({ id: i.id, qty: i.qty, sel: i.sel, obs: i.obs })),
     cliente: { nome: cliente.nome, fone: cliente.fone, rua: cliente.rua, numero: cliente.num, comp: cliente.comp, bairro: cliente.bairro, ref: cliente.ref, obs: cliente.obs },
-    entrega: { lat: frete.lat, lng: frete.lng },
+    entrega: { lat: frete.lat, lng: frete.lng }, retirada: ehRet(),
     email: cliente.email
   };
   const r = await api("pix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => ({ erro: "Sem conexão. Tente de novo." }));
@@ -471,7 +495,7 @@ async function pagarOnline() {
   const body = {
     itens: cart.map(i => ({ id: i.id, qty: i.qty, sel: i.sel, obs: i.obs })),
     cliente: { nome: cliente.nome, fone: cliente.fone, rua: cliente.rua, numero: cliente.num, comp: cliente.comp, bairro: cliente.bairro, ref: cliente.ref, obs: cliente.obs },
-    entrega: { lat: frete.lat, lng: frete.lng }
+    entrega: { lat: frete.lat, lng: frete.lng }, retirada: ehRet()
   };
   const r = await api("pagamento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => ({ erro: "Sem conexão. Tente de novo." }));
   if (!r.ok) { btn.disabled = false; btn.firstElementChild.textContent = "Pagar " + brl(totalPedido()); return mostrarErros([r.erro]); }
@@ -491,20 +515,22 @@ function mensagem(pago, reg) {
   L.forEach(i => { M.push(`*${i.qty}x ${i.nome}* · ${brl(i.total)}`); optText(i).forEach(t => M.push(`   - ${t}`)); });
   M.push("");
   M.push(`Produtos: ${brl(st)}`);
-  M.push(`Entrega (${String(frete.km).replace(".", ",")} km): ${frete.gratis ? "grátis" : brl(frete.taxa)}`);
+  M.push(ehRet() ? "*RETIRADA NO LOCAL* (sem taxa)" : `Entrega (${String(frete.km).replace(".", ",")} km): ${frete.gratis ? "grátis" : brl(frete.taxa)}`);
   M.push(`*Total: ${brl(r2(st + frete.taxa))}*`);
   M.push("");
   if (pago) M.push(`*PAGO ONLINE* ✅ (${pago.metodo === "bank_transfer" ? "Pix" : pago.metodo === "debit_card" ? "cartão de débito" : "cartão de crédito"} · Mercado Pago nº ${pago.id})`);
   else {
-    M.push(`*Pagamento na entrega:* ${c.pag}`);
+    M.push(`*Pagamento na ${ehRet() ? "retirada" : "entrega"}:* ${c.pag}`);
     if (c.pag === "Dinheiro") M.push(c.troco ? `Troco para ${brl(parseFloat(String(c.troco).replace(",", ".")))}` : "Não precisa de troco");
   }
   M.push("");
   M.push(`*Cliente:* ${c.nome}`);
   M.push(`*Telefone:* ${c.fone}`);
+  if (!ehRet()) {
   M.push(`*Endereço:* ${c.rua}, ${c.num}${c.comp ? ` · ${c.comp}` : ""}`);
   M.push(`*Bairro:* ${c.bairro}${c.cep ? ` · CEP ${c.cep}` : ""}`);
   if (c.ref) M.push(`*Referência:* ${c.ref}`);
+  }
   if (frete.lat) M.push(`*Mapa:* https://maps.google.com/?q=${frete.lat.toFixed(6)},${frete.lng.toFixed(6)}`);
   if (c.obs) { M.push(""); M.push(`*Obs:* ${c.obs}`); }
   return M.join("\n");
@@ -518,7 +544,7 @@ async function registrarPedido(pago) {
     itens: cart.map(i => ({ id: i.id, qty: i.qty, sel: i.sel, obs: i.obs })),
     cliente: { nome: cliente.nome, fone: cliente.fone, rua: cliente.rua, numero: cliente.num, comp: cliente.comp, bairro: cliente.bairro, ref: cliente.ref, obs: cliente.obs },
     cep: cliente.cep,
-    entrega: { lat: frete.lat, lng: frete.lng },
+    entrega: { lat: frete.lat, lng: frete.lng }, retirada: ehRet(),
     pagamento: pago ? { modo: "online", id: pago.id } : { modo: "entrega", forma: cliente.pag, troco: parseFloat(String(cliente.troco || "").replace(",", ".")) || 0 }
   };
   try {
@@ -548,7 +574,9 @@ function telaConfirmado(pago, reg) {
   $("#cSteps").innerHTML = "";
   $("#cBody").innerHTML = `<div class="sent">${pago ? `<div class="okbadge">Pagamento aprovado</div>` : ""}
     <h4>Pedido #${esc(reg.numero)} confirmado!</h4>
-    <p>Seu pedido já chegou na nossa cozinha. ${pago ? "Está pago, é só aguardar a entrega." : `Pagamento na entrega: <b>${esc(cliente.pag)}</b>.`}</p>
+    <p>Seu pedido já chegou na nossa cozinha. ${ehRet()
+      ? `${pago ? "Está pago." : `Pagamento na retirada: <b>${esc(cliente.pag)}</b>.`} Retire em <b>${esc(CONFIG.enderecoRetirada || "nossa loja")}</b>${CONFIG.tempoRetirada ? `, pronto em ${esc(CONFIG.tempoRetirada)}` : ""}. Informe o número <b>#${esc(reg.numero)}</b> no balcão.`
+      : (pago ? "Está pago, é só aguardar a entrega." : `Pagamento na entrega: <b>${esc(cliente.pag)}</b>.`)}</p>
     <p class="hint">Previsão e dúvidas pelo WhatsApp <b>${esc(CONFIG.telefone)}</b>.</p></div>`;
   $("#cFoot").innerHTML = `<a class="ghost" id="sendWa" href="${waLink(msg)}" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">Falar no WhatsApp</a><button class="primary" type="button" id="novo"><span>Fazer novo pedido</span><span>→</span></button>`;
   cart = []; frete = null; step = 1; store.set("bravio_cart2", cart); renderBar(); store.del("bravio_pendente");
@@ -618,6 +646,7 @@ function onField(e) {
     if (k === "cep" && e.type === "input" && v.length === 9) buscarCep(v.replace("-", ""));
   }
   if (t.name === "pag") { cliente.pag = t.value; $("#trocoBox").hidden = cliente.pag !== "Dinheiro"; }
+  if (t.name === "modoRec") { cliente.modo = t.value; saveCli(); stepEntrega(); return; }
   if (t.name === "pagModo") { cliente.pagModo = t.value; $("#offBox").hidden = t.value !== "entrega"; if ($("#pixBox")) $("#pixBox").hidden = t.value !== "pix"; }
   saveCli();
 }

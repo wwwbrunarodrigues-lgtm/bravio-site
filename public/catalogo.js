@@ -26,6 +26,10 @@
       { ateKm: 12, taxa: 12 },
       { ateKm: 15, taxa: 15 }
     ],                                   // acima do último: "fora da área"
+    // Retirada no local (o cliente busca o pedido na loja, sem taxa de entrega)
+    retirada: true,
+    enderecoRetirada: "Tatuquara, Curitiba",   // <-- coloque o endereço completo da loja
+    tempoRetirada: "20 a 30 min",
     freteGratisAcima: 0,                 // 0 = desligado. Ex: 80 = grátis acima de R$ 80
     pedidoMinimo: 0,                     // 0 = sem pedido mínimo
 
