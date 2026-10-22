@@ -22,7 +22,7 @@ async function api(path, opts) {
 }
 
 /* ---------- Meta Pixel (opcional) ---------- */
-function px(ev, data) { try { window.fbq && fbq("track", ev, data || {}); } catch (e) {} }
+function px(ev, data, id) { try { window.fbq && fbq("track", ev, data || {}, id ? { eventID: id } : undefined); } catch (e) {} }
 if (CONFIG.metaPixelId) {
   !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version="2.0";n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,"script","https://connect.facebook.net/en_US/fbevents.js");
   fbq("init", CONFIG.metaPixelId); fbq("track", "PageView");
@@ -401,7 +401,6 @@ async function telaCartao() {
         const r = await api("cartao", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => ({ erro: "Sem conexão. Tente de novo." }));
         if (r.status === "approved") {
           resolve();
-          px("Purchase", { value: r.total, currency: "BRL" });
           try { cardBrick.unmount(); } catch (e) {}
           finalizar({ pedido: r.pedido, id: r.id, metodo: r.metodo || "credit_card" });
         } else if (r.status === "in_process" || r.status === "pending") {
@@ -478,7 +477,6 @@ function telaPix(p) {
     checando = false;
     if (s.status === "approved" && s.pedido === p.pedido) {
       clearInterval(pixTimer);
-      px("Purchase", { value: s.valor, currency: "BRL" });
       if ($("#cartOv").hidden) show("#cartOv");
       finalizar({ pedido: s.pedido, id: s.id, metodo: s.metodo || "bank_transfer" });
     } else if (s.status === "cancelled" || s.status === "rejected") {
@@ -563,12 +561,12 @@ async function finalizar(pago) {
 }
 async function confirmarEntrega() {
   const btn = $("#confirmBtn"); btn.disabled = true; btn.firstElementChild.textContent = "Enviando pedido…";
-  px("Lead", { value: totalPedido(), currency: "BRL" });
   const reg = await registrarPedido(null);
   telaConfirmado(null, reg);
 }
 // Tela final. Com o pedido registrado, o WhatsApp vira só um aviso opcional.
 function telaConfirmado(pago, reg) {
+  if (reg) px("Purchase", { value: totalPedido(), currency: "BRL", num_items: cart.reduce((n, i) => n + i.qty, 0), content_ids: cart.map(i => i.id), content_type: "product" }, reg.pedido);
   if (!reg) return telaEnviado(mensagem(pago, null), !!pago, true);   // sem servidor: envia tudo pelo WhatsApp
   const msg = mensagem(pago, reg);
   $("#cSteps").innerHTML = "";
@@ -617,7 +615,6 @@ async function retornoPagamento() {
   $("#cBody").innerHTML = `<div class="sent"><h4>Confirmando pagamento…</h4></div>`;
   const s = await api("status?payment_id=" + encodeURIComponent(pid)).catch(() => ({}));
   if (s.status === "approved" && s.pedido === pend.pedido) {
-    px("Purchase", { value: s.valor, currency: "BRL" });
     finalizar({ pedido: s.pedido, id: s.id, metodo: s.metodo });
   } else if (s.status === "pending" || s.status === "in_process") {
     $("#cBody").innerHTML = `<div class="sent"><h4>Aguardando pagamento</h4><p>Assim que o Pix ou cartão for confirmado, toque em verificar.</p></div>`;

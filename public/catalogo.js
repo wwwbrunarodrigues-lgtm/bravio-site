@@ -49,21 +49,24 @@
     { n: "Sem cebola" }, { n: "Sem tomate" }, { n: "Sem alface" }, { n: "Sem picles" }, { n: "Sem maionese" }, { n: "Sem molho" }] };
   const MOLHO = { id: "molho", nome: "Molho extra", tipo: "varios", itens: [{ n: "Molho da casa", p: 3 }] };
   const LANCHE = [ADICIONAIS, REMOVER];
+  const BEBIDA_COMBO = { id: "bebida", nome: "Bebida do combo", tipo: "um", obrig: true, itens: [
+    { n: "Coca-Cola 200 ml" }, { n: "Coca-Cola Zero 200 ml" }, { n: "Guaraná 200 ml" }, { n: "Sprite 200 ml" }] };
+  const COMBO = [BEBIDA_COMBO, ADICIONAIS, REMOVER];
 
   const CATS = [
-    { id: "combo", nome: "Combos", brush: "gold", sub: "Lanche + batatas fritas crocantes + Coca-Cola.", frame: true },
+    { id: "combo", nome: "Combos", brush: "gold", sub: "Lanche + batatas fritas crocantes + refrigerante 200 ml (Coca-Cola, Coca Zero, Guaraná ou Sprite).", frame: true },
     { id: "hamburguer", nome: "Hambúrgueres", sub: "Pão brioche e carnes smash de 70g prensadas na chapa." },
     { id: "tradicional", nome: "Lanches Tradicionais", brush: "gold", sub: "Pão de hambúrguer, maionese, tomate, alface e hambúrguer de 90g." },
     { id: "porcao", nome: "Porções", sub: "" }
   ];
 
   const PRODUTOS = [
-    { id: "c1", cat: "combo", n: 1, nome: "Combo X Salada", preco: 27.5, img: "c1", desc: "X Salada suculento com batatas fritas crocantes e Coca-Cola.", op: LANCHE },
-    { id: "c2", cat: "combo", n: 2, nome: "Combo X Egg", preco: 28.9, img: "c2", desc: "X Egg suculento com batatas fritas crocantes e Coca-Cola.", op: LANCHE },
-    { id: "c3", cat: "combo", n: 3, nome: "Combo X Bacon", preco: 29.9, img: "c3", desc: "X Bacon suculento com batatas fritas crocantes e Coca-Cola.", op: LANCHE },
-    { id: "c4", cat: "combo", n: 4, nome: "Combo Smash Duplo", preco: 37.9, img: "c4", desc: "Smash burger duplo com fritas e Coca-Cola.", op: LANCHE },
-    { id: "c5", cat: "combo", n: 5, nome: "Combo Alto Audacioso", preco: 37.9, img: "c5", desc: "Hambúrguer Alto Audacioso com fritas e Coca-Cola.", op: LANCHE },
-    { id: "c6", cat: "combo", n: 6, nome: "Combo Tenebroso", preco: 48.9, img: "c6", tag: "4 smashs", desc: "Hambúrguer com 4 smashs, fritas e refrigerante.", op: LANCHE },
+    { id: "c1", cat: "combo", n: 1, nome: "Combo X Salada", preco: 27.5, img: "c1", desc: "X Salada suculento com batatas fritas crocantes e refrigerante 200 ml à sua escolha.", op: COMBO },
+    { id: "c2", cat: "combo", n: 2, nome: "Combo X Egg", preco: 28.9, img: "c2", desc: "X Egg suculento com batatas fritas crocantes e refrigerante 200 ml à sua escolha.", op: COMBO },
+    { id: "c3", cat: "combo", n: 3, nome: "Combo X Bacon", preco: 29.9, img: "c3", desc: "X Bacon suculento com batatas fritas crocantes e refrigerante 200 ml à sua escolha.", op: COMBO },
+    { id: "c4", cat: "combo", n: 4, nome: "Combo Smash Duplo", preco: 37.9, img: "c4", desc: "Smash burger duplo com fritas e refrigerante 200 ml à sua escolha.", op: COMBO },
+    { id: "c5", cat: "combo", n: 5, nome: "Combo Alto Audacioso", preco: 37.9, img: "c5", desc: "Hambúrguer Alto Audacioso com fritas e refrigerante 200 ml à sua escolha.", op: COMBO },
+    { id: "c6", cat: "combo", n: 6, nome: "Combo Tenebroso", preco: 48.9, img: "c6", tag: "4 smashs", desc: "Hambúrguer com 4 smashs, fritas e refrigerante 200 ml à sua escolha.", op: COMBO },
 
     { id: "h1", cat: "hamburguer", nome: "Smash Burguer Salad", preco: 24.0, img: "h1", desc: "Pão brioche, 2 carnes smash 70g (140g), queijo cheddar, alface, tomate, cebola roxa e molho especial da casa.", op: LANCHE },
     { id: "h2", cat: "hamburguer", nome: "Smash Burguer Duplo", preco: 27.9, img: "h2", desc: "Pão brioche, 2 carnes smash 70g (140g), bacon em tiras e molho especial da casa.", op: LANCHE },
