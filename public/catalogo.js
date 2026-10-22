@@ -70,6 +70,8 @@
     { id: "h3", cat: "hamburguer", nome: "Burguer Alto Audacioso", preco: 27.9, img: "h3", desc: "Carne bovina 140g, queijo cheddar, Doritos, picles, cebola roxa, molho especial e pão brioche.", op: LANCHE },
     { id: "h4", cat: "hamburguer", nome: "Smash Burguer Tenebroso", preco: 38.9, img: "h4", tag: "280g de carne", desc: "Pão brioche, bacon em tiras, cebola roxa, molho barbecue, 4 tiras de queijo cheddar e 4 carnes smash de 70g cada (280g).", op: LANCHE },
 
+    { id: "h5", cat: "hamburguer", nome: "Burguer Alto Colossal", preco: 38.9, img: "h5", tag: "Novo", desc: "Pão brioche macio e levemente amanteigado, molho verde especial da casa, alface crocante, tomate fresco, cebola roxa fatiada, picles agridoce, hambúrguer artesanal de 120g, queijo cheddar e muçarela derretidos, bacon crocante e 2 anéis de cebola empanados e dourados.", op: LANCHE },
+
     { id: "t1", cat: "tradicional", nome: "X Salada do Rocha", preco: 17.5, img: "t1", desc: "Pão de hambúrguer, maionese, tomate, alface, hambúrguer 90g, presunto e queijo muçarela.", op: LANCHE },
     { id: "t2", cat: "tradicional", nome: "X Egg", preco: 18.9, img: "t2", desc: "Pão de hambúrguer, maionese, tomate, alface, hambúrguer 90g, ovo frito, presunto e queijo muçarela.", op: LANCHE },
     { id: "t3", cat: "tradicional", nome: "X Bacon do Rocha", preco: 19.9, img: "t3", desc: "Pão de hambúrguer, maionese, tomate, alface, hambúrguer 90g, bacon, presunto e queijo muçarela.", op: LANCHE },
