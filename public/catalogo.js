@@ -39,7 +39,7 @@
     // Chave PÚBLICA do Mercado Pago (pode ficar aqui, não é segredo). Usada no formulário de cartão do site.
     mpPublicKey: "APP_USR-d5940ed5-1a61-4bab-91cc-9b8291e7abf6",
 
-    metaPixelId: ""                      // opcional: ID do Pixel da Meta
+    metaPixelId: "2187216805558487"                      // opcional: ID do Pixel da Meta
   };
 
   const ADICIONAIS = { id: "add", nome: "Adicionais", tipo: "varios", max: 6, itens: [
