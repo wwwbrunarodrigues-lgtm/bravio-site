@@ -177,6 +177,29 @@ pre.msg{white-space:pre-wrap;text-align:left;background:var(--surface);border:1p
 .pix-st{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px;padding:12px;border:1px dashed var(--line);border-radius:12px;font-size:14px}
 .spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--gold);animation:spin 1s linear infinite;flex:none}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* fumaça suave subindo do lanche */
+.media{position:relative}
+.fumaca{position:absolute;pointer-events:none;z-index:2;mix-blend-mode:screen}
+.fumaca i{position:absolute;bottom:0;width:58%;aspect-ratio:1/1.25;border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(255,250,240,.75) 0%,rgba(255,250,240,.28) 35%,rgba(255,250,240,0) 66%);
+  filter:blur(9px);opacity:0;animation:fumaca 8s ease-in infinite;will-change:transform,opacity}
+.fumaca i:nth-child(1){left:-4%;animation-delay:0s;--dx:-14px}
+.fumaca i:nth-child(2){left:20%;animation-delay:1.6s;animation-duration:9s;--dx:12px}
+.fumaca i:nth-child(3){left:46%;animation-delay:3.2s;--dx:-8px}
+.fumaca i:nth-child(4){left:8%;animation-delay:4.8s;animation-duration:9.5s;--dx:16px}
+.fumaca i:nth-child(5){left:30%;animation-delay:6.4s;--dx:-12px}
+@keyframes fumaca{
+  0%{transform:translate(0,25%) scale(.45);opacity:0}
+  18%{opacity:.5}
+  55%{opacity:.28}
+  100%{transform:translate(var(--dx),-170%) scale(1.7) rotate(8deg);opacity:0}
+}
+.hero .fumaca{left:16%;right:30%;top:-6%;height:30%}
+.sheet .fumaca{left:18%;right:18%;top:-12%;height:75%}
+.sheet-img{object-position:center 12%}
+.sheet .media{overflow:hidden}
+@media (prefers-reduced-motion:reduce){.fumaca{display:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 @media (max-width:420px){.row,.row.r3{grid-template-columns:1fr}.ph{width:96px;height:88px}.steps li{font-size:0;gap:0;justify-content:center}.steps li.on{font-size:12px;gap:6px}}
 </style>
@@ -190,7 +213,8 @@ pre.msg{white-space:pre-wrap;text-align:left;background:var(--surface);border:1p
       <div class="phone" title="Pedidos pelo WhatsApp"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#1FA855"/><path fill="#fff" d="M22.6 18.9c-.3-.2-2-1-2.3-1.1-.3-.1-.5-.2-.8.2-.2.3-.9 1.1-1 1.3-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.7-1.7-1-.9-1.7-2-1.9-2.3-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1.1-2.5c-.3-.7-.6-.6-.8-.6h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.7 5.1 2.8 1.1 3.4.9 4 .8.6-.1 2-.8 2.3-1.6.3-.8.3-1.5.2-1.6-.1-.2-.3-.3-.6-.4z"/></svg><span id="phoneTxt"></span></div>
     </div>
     <div>
-      <img class="hero-img" id="heroImg" alt="Hambúrguer duplo com bacon e cheddar, fritas e refrigerante">
+      <div class="media"><div class="fumaca" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <img class="hero-img" id="heroImg" alt="Hambúrguer duplo com bacon e cheddar, fritas e refrigerante"></div>
       <div class="slogan" style="margin:-34px 0 0 8%;position:relative">Feito com cuidado<b>em cada detalhe!</b></div>
     </div>
   </div>
@@ -218,7 +242,8 @@ pre.msg{white-space:pre-wrap;text-align:left;background:var(--surface);border:1p
 
 <div class="overlay" id="prodOv" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pTitle">
-    <img class="sheet-img" id="pImg" alt="">
+    <div class="media"><div class="fumaca" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <img class="sheet-img" id="pImg" alt=""></div>
     <div class="sheet-h"><div><h3 id="pTitle"></h3><p id="pDesc"></p></div><button class="x" type="button" data-close aria-label="Fechar">×</button></div>
     <div class="sheet-b" id="pBody"></div>
     <div class="sheet-f">
