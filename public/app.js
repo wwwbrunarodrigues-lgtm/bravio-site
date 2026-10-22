@@ -65,7 +65,7 @@ function renderMenu() {
     count += itens.length; vis.push(c);
     let extra = "";
     if (c.id === "hamburguer" && !q) {
-      const add = PRODUTOS[0].op[0].itens;
+      const add = (PRODUTOS.flatMap(p => p.op).find(g => g.id === "add") || { itens: [] }).itens;
       extra = `<div class="extras"><div class="pricelist"><h3>Adicionais (em qualquer lanche)</h3>${add.map(i => `<div class="pl"><span>${esc(i.n)}</span><i></i><b>${brl(i.p)}</b></div>`).join("")}</div></div>`;
     }
     if (c.id === "porcao" && !q) {
