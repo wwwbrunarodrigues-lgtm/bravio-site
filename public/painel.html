@@ -34,6 +34,43 @@ button,input{font:inherit;color:inherit}
 .btn.blue{background:var(--blue);color:#fff}
 .btn.red{background:transparent;border:1px solid var(--red);color:#FF8A7E}
 .tog.loja.on{border-color:var(--ok);color:#7BE3A6}.tog.loja.off{border-color:var(--red);color:#FF8A7E}
+
+/* relatórios */
+#rel{padding:16px;max-width:1300px;margin:0 auto}
+.rel-top{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:14px}
+.rel-top h1{font-family:var(--display);font-weight:400;font-size:34px;letter-spacing:.03em;margin:0 8px 0 0}
+.per{display:flex;flex-wrap:wrap;gap:6px}
+.per .btn.on{background:var(--gold);color:var(--gold-ink)}
+.rel-per{color:var(--muted);font-size:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.kpi small{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.kpi b{display:block;font-family:var(--display);font-weight:400;font-size:32px;letter-spacing:.02em;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--muted);font-size:12.5px}
+.kpi.gold b{color:var(--gold)}
+.rgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.rgrid{grid-template-columns:1fr}}
+.rbox{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.rbox.full{grid-column:1/-1}
+.rbox h3{font-family:var(--cond);text-transform:uppercase;letter-spacing:.05em;font-size:16px;margin:0 0 10px;color:var(--gold)}
+.rbox p.dica{color:var(--muted);font-size:12.5px;margin:8px 0 0}
+.bar{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,2fr) auto;gap:10px;align-items:center;padding:4px 0;font-size:14px}
+.bar .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .t{height:12px;border-radius:6px;background:var(--surface-2);overflow:hidden}
+.bar .t i{display:block;height:100%;background:var(--gold);border-radius:6px}
+.bar .v{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;text-align:right;white-space:nowrap}
+.cols{display:flex;align-items:flex-end;gap:3px;height:140px;padding-top:6px}
+.cols div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;height:100%;justify-content:flex-end}
+.cols i{width:100%;background:var(--gold);border-radius:4px 4px 0 0;min-height:2px}
+.cols i.zero{background:var(--surface-2)}
+.cols span{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.cols em{font-style:normal;font-size:11px;font-variant-numeric:tabular-nums}
+.funil{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:640px){.funil{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.funil div{background:var(--surface-2);border-radius:12px;padding:10px;text-align:center}
+.funil b{display:block;font-family:var(--display);font-weight:400;font-size:28px}
+.funil small{color:var(--muted);font-size:12px}
+.funil span{display:block;color:var(--gold);font-size:12.5px;font-weight:700;margin-top:2px}
 .err{color:#FF8A7E;font-weight:700;font-size:14px;text-align:center}
 
 /* topo */
@@ -125,6 +162,7 @@ main{padding:16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap
     <button class="btn" type="button" id="papel">Papel 80 mm</button>
     <button class="btn" type="button" id="testeImp">Testar impressora</button>
     <button class="btn" type="button" id="testeSom">Testar som</button>
+    <button class="btn gold" type="button" id="verRel">Relatórios</button>
     <button class="btn" type="button" id="sair">Sair</button>
   </header>
   <div class="aviso som" id="avisoSom">Toque aqui para ativar o som de novos pedidos</div>
@@ -134,6 +172,20 @@ main{padding:16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap
     <section class="col" data-c="saiu"><h2>Saiu / Pronto <b id="k-saiu">0</b></h2><div id="l-saiu"></div></section>
     <section class="col" data-c="fim"><h2>Finalizados <b id="k-fim">0</b></h2><div id="l-fim"></div></section>
   </main>
+  <section id="rel" hidden>
+    <div class="rel-top">
+      <h1>Relatórios</h1>
+      <div class="per" id="per">
+        <button class="btn" data-per="hoje">Hoje</button>
+        <button class="btn" data-per="ontem">Ontem</button>
+        <button class="btn" data-per="7">7 dias</button>
+        <button class="btn" data-per="30">30 dias</button>
+        <button class="btn" data-per="mes">Este mês</button>
+      </div>
+      <span class="rel-per" id="relPer"></span>
+    </div>
+    <div id="relBody"><div class="vazio">Carregando…</div></div>
+  </section>
 </div>
 
 <div id="print"></div>
@@ -220,6 +272,72 @@ async function carregar(teste) {
     return 0;
   }
 }
+
+/* ---------- relatórios ---------- */
+let perAtual = "7";
+const iso = t => new Date(t - 3 * 3600000).toISOString().slice(0, 10);
+function periodo(k) {
+  const hoje = hojeBR(), agora = Date.now();
+  if (k === "hoje") return [hoje, hoje];
+  if (k === "ontem") { const o = iso(agora - 86400000); return [o, o]; }
+  if (k === "mes") return [hoje.slice(0, 8) + "01", hoje];
+  return [iso(agora - (Number(k) - 1) * 86400000), hoje];
+}
+const dataBR = d => d.split("-").reverse().join("/");
+const pct = (a, b) => b && a <= b ? Math.round(a / b * 100) + "%" : "–";
+function barras(lista, fmt) {
+  if (!lista.length) return '<div class="vazio">Sem dados no período</div>';
+  const max = Math.max(...lista.map(x => x[1]));
+  return lista.map(x => `<div class="bar"><span class="n" title="${esc(x[0])}">${esc(x[0])}</span><span class="t"><i style="width:${Math.max(2, x[1] / max * 100)}%"></i></span><span class="v">${fmt(x)}</span></div>`).join("");
+}
+async function carregarRel() {
+  const [de, ate] = periodo(perAtual);
+  document.querySelectorAll("#per .btn").forEach(b => b.classList.toggle("on", b.dataset.per === perAtual));
+  $("#relPer").textContent = de === ate ? dataBR(de) : `${dataBR(de)} a ${dataBR(ate)}`;
+  $("#relBody").innerHTML = '<div class="vazio">Carregando…</div>';
+  let R;
+  try { const r = await fetch(`/api/relatorio?de=${de}&ate=${ate}`, { headers: { "x-senha": senha }, cache: "no-store" }); R = await r.json(); if (!r.ok) throw new Error(R.erro); }
+  catch (e) { $("#relBody").innerHTML = `<div class="vazio">Não foi possível carregar o relatório. ${esc(e.message || "")}</div>`; return; }
+  const dias = Object.entries(R.porDia).sort();
+  const maxDia = Math.max(1, ...dias.map(d => d[1].faturamento)), maxHora = Math.max(1, ...R.porHora);
+  const horas = R.porHora.map((v, h) => [h, v]).filter(([h, v]) => v || (h >= 17 || h <= 3));
+  const F = R.funil;
+  $("#relBody").innerHTML = `
+    <div class="kpis">
+      <div class="kpi gold"><small>Faturamento</small><b>${brl(R.faturamento)}</b><span>${R.taxaEntrega ? "inclui " + brl(R.taxaEntrega) + " de taxa de entrega" : "&nbsp;"}</span></div>
+      <div class="kpi"><small>Pedidos</small><b>${R.pedidos}</b><span>${R.cancelados ? R.cancelados + " cancelado(s) fora da conta" : "&nbsp;"}</span></div>
+      <div class="kpi"><small>Ticket médio</small><b>${brl(R.ticketMedio)}</b><span>por pedido</span></div>
+      <div class="kpi"><small>Entrega × retirada</small><b>${R.modo.map(m => m[1]).join(" × ") || "0"}</b><span>${R.modo.map(m => m[0]).join(" × ") || "&nbsp;"}</span></div>
+      <div class="kpi"><small>Conversão do site</small><b>${pct(R.pedidos, F.visita)}</b><span>${F.visita} visitas → ${R.pedidos} pedidos</span></div>
+    </div>
+    <div class="rgrid">
+      <div class="rbox full"><h3>Funil do cardápio</h3>
+        <div class="funil">
+          <div><small>Entraram no site</small><b>${F.visita}</b><span>&nbsp;</span></div>
+          <div><small>Colocaram na sacola</small><b>${F.sacola}</b><span>${pct(F.sacola, F.visita)} das visitas</span></div>
+          <div><small>Chegaram no pagamento</small><b>${F.checkout}</b><span>${pct(F.checkout, F.sacola)} de quem pôs na sacola</span></div>
+          <div><small>Fizeram pedido</small><b>${R.pedidos}</b><span>${pct(R.pedidos, F.checkout)} de quem chegou no pagamento</span></div>
+        </div>
+        <p class="dica">Se muita gente coloca na sacola mas não chega no pagamento, olhe o frete e o pedido mínimo. Se chega no pagamento e não finaliza, olhe as formas de pagamento.</p>
+      </div>
+      ${dias.length > 1 ? `<div class="rbox full"><h3>Faturamento por dia</h3><div class="cols">${dias.map(([d, v]) => `<div title="${dataBR(d)}: ${brl(v.faturamento)} · ${v.pedidos} pedido(s)"><em>${v.pedidos || ""}</em><i class="${v.faturamento ? "" : "zero"}" style="height:${v.faturamento / maxDia * 100}%"></i><span>${d.slice(8)}/${d.slice(5, 7)}</span></div>`).join("")}</div><p class="dica">O número em cima de cada barra é a quantidade de pedidos do dia.</p></div>` : ""}
+      <div class="rbox"><h3>Lanches mais vendidos</h3>${barras(R.produtos.slice(0, 12), x => `${x[1]} un · ${brl(x[2])}`)}</div>
+      <div class="rbox"><h3>Horários de pico</h3><div class="cols">${horas.map(([h, v]) => `<div title="${h}h: ${v} pedido(s)"><em>${v || ""}</em><i class="${v ? "" : "zero"}" style="height:${v / maxHora * 100}%"></i><span>${String(h).padStart(2, "0")}h</span></div>`).join("")}</div></div>
+      <div class="rbox"><h3>De onde vieram os pedidos</h3>${barras(R.origem, x => `${x[1]} · ${brl(x[2])}`)}<p class="dica">"Anúncio Meta" são pedidos de quem clicou no anúncio nos últimos 7 dias. Compare com o valor gasto no Gerenciador de Anúncios.</p></div>
+      <div class="rbox"><h3>Bairros que mais pedem</h3>${barras(R.bairros, x => `${x[1]} pedido(s)`)}</div>
+      <div class="rbox"><h3>Adicionais mais pedidos</h3>${barras(R.adicionais, x => `${x[1]}×`)}</div>
+      <div class="rbox"><h3>Formas de pagamento</h3>${barras(R.pagamento, x => `${x[1]} pedido(s)`)}</div>
+      ${R.bebidas.length ? `<div class="rbox"><h3>Bebidas dos combos</h3>${barras(R.bebidas, x => `${x[1]}×`)}</div>` : ""}
+    </div>`;
+}
+$("#per").addEventListener("click", e => { const b = e.target.closest("[data-per]"); if (b) { perAtual = b.dataset.per; carregarRel(); } });
+$("#verRel").onclick = () => {
+  const abrirRel = $("#rel").hidden;
+  $("#rel").hidden = !abrirRel; $("#cols").hidden = abrirRel;
+  $("#verRel").textContent = abrirRel ? "Voltar aos pedidos" : "Relatórios";
+  if (abrirRel) carregarRel();
+};
+
 /* ---------- loja aberta / fechada ---------- */
 let lojaInfo = null;
 function mostraLoja() {

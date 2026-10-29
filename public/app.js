@@ -37,6 +37,30 @@ let gps = null;       // { lat, lng } se o cliente usou a localização
 let step = 1;
 const ehRet = () => CONFIG.retirada !== false && cliente.modo === "retirada";
 const FRETE_RET = { retirada: true, atende: true, taxa: 0, km: 0, lat: 0, lng: 0 };
+/* ---------- de onde o cliente veio + funil do site ---------- */
+const origem = (() => {
+  const q = new URLSearchParams(location.search), ref = document.referrer || "";
+  const src = (q.get("utm_source") || "").toLowerCase();
+  let o = null;
+  if (q.get("fbclid") && !src) o = /instagram/i.test(ref) ? "Instagram" : "Facebook";
+  if (src === "meta" || src === "facebook_ads" || q.get("utm_medium") === "pago") o = "Anúncio Meta";
+  else if (src.includes("insta") || /instagram\.com/i.test(ref)) o = o || "Instagram";
+  else if (src.includes("face") || /facebook\.com/i.test(ref)) o = o || "Facebook";
+  else if (src.includes("whats") || /whatsapp/i.test(ref)) o = "WhatsApp";
+  else if (src.includes("google") || /google\./i.test(ref)) o = "Google";
+  // guarda a origem por 7 dias (o cliente pode ver o anúncio hoje e pedir amanhã)
+  let salvo = store.get("bravio_origem", null);
+  if (o) { salvo = { o, t: Date.now() }; store.set("bravio_origem", salvo); }
+  return salvo && Date.now() - salvo.t < 7 * 86400000 ? salvo.o : "Direto";
+})();
+const sid = (() => { try { let v = sessionStorage.getItem("bravio_sid"); if (!v) { v = Math.random().toString(36).slice(2) + Date.now().toString(36); sessionStorage.setItem("bravio_sid", v); } return v; } catch (e) { return Math.random().toString(36).slice(2) + Date.now().toString(36); } })();
+const evEnviados = {};
+function evento(tipo) {
+  if (evEnviados[tipo] || !location.protocol.startsWith("http")) return;
+  evEnviados[tipo] = true;
+  try { fetch("/api/evento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tipo, sid, origem }), keepalive: true }).catch(() => {}); } catch (e) {}
+}
+
 /* ---------- horário de funcionamento ---------- */
 let loja = window.CATALOGO.statusHorario();
 function textoLoja() {
@@ -155,7 +179,7 @@ $("#pAdd").onclick = () => {
   if (ex) ex.qty += pQty; else cart.push({ key, id: current.id, qty: pQty, sel, obs });
   const unit = precificar({ id: current.id, qty: 1, sel }).unit;
   px("AddToCart", { content_ids: [current.id], content_name: current.nome, value: unit * pQty, currency: "BRL" });
-  saveCart(); hide("#prodOv"); toast(`${pQty}× ${current.nome} na sacola`);
+  saveCart(); hide("#prodOv"); toast(`${pQty}× ${current.nome} na sacola`); evento("sacola");
 };
 
 /* ---------- sacola ---------- */
@@ -319,6 +343,7 @@ async function buscarCep(cep) {
 
 /* 3. pagamento */
 function stepPagamento() {
+  evento("checkout");
   const c = cliente;
   const on = CONFIG.pagamentoOnline && onlineOk, off = CONFIG.pagamentoNaEntrega || !on;
   if (!on && c.pagModo !== "entrega") c.pagModo = "entrega";
@@ -562,7 +587,8 @@ async function registrarPedido(pago) {
     cliente: { nome: cliente.nome, fone: cliente.fone, rua: cliente.rua, numero: cliente.num, comp: cliente.comp, bairro: cliente.bairro, ref: cliente.ref, obs: cliente.obs },
     cep: cliente.cep,
     entrega: { lat: frete.lat, lng: frete.lng }, retirada: ehRet(),
-    pagamento: pago ? { modo: "online", id: pago.id } : { modo: "entrega", forma: cliente.pag, troco: parseFloat(String(cliente.troco || "").replace(",", ".")) || 0 }
+    pagamento: pago ? { modo: "online", id: pago.id } : { modo: "entrega", forma: cliente.pag, troco: parseFloat(String(cliente.troco || "").replace(",", ".")) || 0 },
+    origem
   };
   try {
     const r = await api("registrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -688,7 +714,7 @@ if (CONFIG.pagamentoOnline && location.protocol.startsWith("http")) {
 }
 
 renderMenu(); renderBar(); retornoPagamento();
-aplicarLoja(); atualizarLoja(); setInterval(atualizarLoja, 60000);
+aplicarLoja(); atualizarLoja(); setInterval(atualizarLoja, 60000); evento("visita");
 
 // Se o cliente recarregou a página com um Pix em aberto, volta para a tela do QR Code
 (function retomarPix() {

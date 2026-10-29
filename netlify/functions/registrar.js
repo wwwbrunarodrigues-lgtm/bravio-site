@@ -78,6 +78,7 @@ exports.handler = async (event) => {
       : { n: corta(c.nome, 60), f: corta(c.fone, 20), e: corta(`${c.rua}, ${c.numero}${c.comp ? " - " + c.comp : ""}`, 140), b: corta(c.bairro, 60), r: corta(c.ref, 100), cep: corta(b.cep, 9) },
     o: corta(c.obs, 200),
     pg: pagamento,
+    src: ["Anúncio Meta", "Instagram", "Facebook", "WhatsApp", "Google", "Direto"].includes(b.origem) ? b.origem : "Direto",   // de onde o cliente veio
     g: p.retirada ? null : [Number(b.entrega.lat), Number(b.entrega.lng)]
   };
   try { await db.set(chave, pedido); }
