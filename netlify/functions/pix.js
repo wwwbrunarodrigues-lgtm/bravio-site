@@ -1,6 +1,7 @@
 // POST /api/pix — gera um Pix (QR Code + copia e cola) direto no site, sem o cliente precisar de conta no Mercado Pago.
 // Requer uma chave Pix cadastrada na conta do Mercado Pago do vendedor.
 const { montarPedido } = require("../lib/pedido.js");
+const { situacao } = require("../lib/loja.js");
 
 const json = (code, body) => ({ statusCode: code, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
@@ -10,6 +11,7 @@ exports.handler = async (event) => {
   if (!token) return json(500, { erro: "Pagamento online ainda não configurado." });
 
   let b; try { b = JSON.parse(event.body || "{}"); } catch { return json(400, { erro: "JSON inválido" }); }
+  try { const st = await situacao(event); if (!st.aberto) return json(409, { fechado: true, erro: "Estamos fechados agora" + (st.abreTxt ? `. Abrimos ${st.diaAbre} às ${st.abreTxt}.` : ".") }); } catch (e) {}
   let p; try { p = montarPedido(b); } catch (e) { return json(400, { erro: e.message }); }
   const email = String(b.email || "").trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json(400, { erro: "Informe um e-mail válido para receber o comprovante do Pix." });

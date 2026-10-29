@@ -200,6 +200,14 @@ pre.msg{white-space:pre-wrap;text-align:left;background:var(--surface);border:1p
 .sheet-img{object-position:center 12%}
 .sheet .media{overflow:hidden}
 @media (prefers-reduced-motion:reduce){.fumaca{display:none}}
+
+/* aberto / fechado */
+.status-loja{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:14px;padding:6px 12px;border-radius:999px;background:var(--surface);border:1px solid var(--line);width:max-content;max-width:100%}
+.status-loja i{width:9px;height:9px;border-radius:50%;flex:none}
+.status-loja.on i{background:var(--wa);box-shadow:0 0 0 3px rgba(31,168,85,.25)}
+.status-loja.off{color:#FF8A7E}.status-loja.off i{background:var(--red-hi)}
+.fechado{margin-top:16px;border:1px solid var(--red-hi);background:rgba(216,53,42,.12);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.fechado b{font-size:16px}.fechado span{color:var(--muted);font-size:13.5px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 @media (max-width:420px){.row,.row.r3{grid-template-columns:1fr}.ph{width:96px;height:88px}.steps li{font-size:0;gap:0;justify-content:center}.steps li.on{font-size:12px;gap:6px}}
 </style>
@@ -211,6 +219,7 @@ pre.msg{white-space:pre-wrap;text-align:left;background:var(--surface);border:1p
       <img class="logo" id="logo" alt="Bravio Food House">
       <h1 class="title">Cardápio<span>Combos, hambúrgueres, tradicionais e adicionais</span></h1>
       <div class="phone" title="Pedidos pelo WhatsApp"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#1FA855"/><path fill="#fff" d="M22.6 18.9c-.3-.2-2-1-2.3-1.1-.3-.1-.5-.2-.8.2-.2.3-.9 1.1-1 1.3-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.7-1.7-1-.9-1.7-2-1.9-2.3-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1.1-2.5c-.3-.7-.6-.6-.8-.6h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.7 5.1 2.8 1.1 3.4.9 4 .8.6-.1 2-.8 2.3-1.6.3-.8.3-1.5.2-1.6-.1-.2-.3-.3-.6-.4z"/></svg><span id="phoneTxt"></span></div>
+      <div class="status-loja" id="statusLoja"></div>
     </div>
     <div>
       <div class="media"><div class="fumaca" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
@@ -228,6 +237,7 @@ pre.msg{white-space:pre-wrap;text-align:left;background:var(--surface);border:1p
 </nav>
 
 <main class="wrap">
+  <div class="fechado" id="avisoFechado" hidden></div>
   <div id="menu"></div>
   <div class="empty" id="empty" hidden>Nada encontrado. Tente outro termo.</div>
 </main>

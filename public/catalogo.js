@@ -30,6 +30,18 @@
     retirada: true,
     enderecoRetirada: "Tatuquara, Curitiba",   // <-- coloque o endereço completo da loja
     tempoRetirada: "20 a 30 min",
+    // Horário de funcionamento (horário de Brasília). 0=domingo ... 6=sábado. null = fechado.
+    // Se o horário de fechar for menor que o de abrir, passa da meia-noite (ex: 18:00 até 02:30).
+    horarios: {
+      0: null,                  // domingo: fechado
+      1: ["18:00", "01:00"],    // segunda
+      2: ["18:00", "01:00"],    // terça
+      3: ["18:00", "01:00"],    // quarta
+      4: ["18:00", "01:00"],    // quinta
+      5: ["18:00", "02:30"],    // sexta
+      6: ["18:00", "02:30"]     // sábado
+    },
+    horarioTexto: "Seg a Qui 18h às 01h · Sex e Sáb 18h às 02h30 · Dom fechado",
     freteGratisAcima: 0,                 // 0 = desligado. Ex: 80 = grátis acima de R$ 80
     pedidoMinimo: 0,                     // 0 = sem pedido mínimo
 
@@ -120,7 +132,42 @@
     return { id: p.id, nome: p.nome, img: p.img, qty, unit, total: r2(unit * qty), opts, obs: String(item.obs || "").slice(0, 140) };
   }
 
-  const API = { CONFIG, CATS, PRODUTOS, distanciaKm, taxaPorKm, precificar, r2 };
+  /* ---------- horário de funcionamento ---------- */
+  const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+  const minutos = h => { const [a, b] = String(h).split(":").map(Number); return a * 60 + (b || 0); };
+  const horaTxt = h => { const [a, b] = String(h).split(":"); return a + "h" + (b && b !== "00" ? b : ""); };
+  // Diz se está aberto agora (pelo horário fixo). Usa o horário de Brasília (UTC-3).
+  function statusHorario(t) {
+    const br = new Date((t || Date.now()) - 3 * 3600000);
+    const dia = br.getUTCDay(), m = br.getUTCHours() * 60 + br.getUTCMinutes();
+    const H = CONFIG.horarios || {};
+    const hoje = H[dia];
+    if (hoje) {
+      const ab = minutos(hoje[0]), fe = minutos(hoje[1]), fim = fe <= ab ? fe + 1440 : fe;
+      if (m >= ab && m < fim) return { aberto: true, fecha: hoje[1], fechaTxt: horaTxt(hoje[1]), minRestantes: fim - m };
+    }
+    const ontem = H[(dia + 6) % 7];
+    if (ontem) {
+      const ab = minutos(ontem[0]), fe = minutos(ontem[1]);
+      if (fe <= ab && m < fe) return { aberto: true, fecha: ontem[1], fechaTxt: horaTxt(ontem[1]), minRestantes: fe - m };
+    }
+    for (let k = 0; k < 8; k++) {
+      const d = (dia + k) % 7, w = H[d];
+      if (!w || (k === 0 && m >= minutos(w[0]))) continue;
+      return { aberto: false, abre: w[0], abreTxt: horaTxt(w[0]), diaAbre: k === 0 ? "hoje" : k === 1 ? "amanhã" : DIAS[d] };
+    }
+    return { aberto: false };
+  }
+  // Junta o horário fixo com o botão do painel (abrir/fechar na hora)
+  function statusLoja(override, t) {
+    const now = t || Date.now(), h = statusHorario(now);
+    if (override && override.ate > now && (override.modo === "aberto" || override.modo === "fechado")) {
+      return { ...h, aberto: override.modo === "aberto", manual: override.modo, ate: override.ate };
+    }
+    return h;
+  }
+
+  const API = { CONFIG, CATS, PRODUTOS, distanciaKm, taxaPorKm, precificar, r2, statusHorario, statusLoja };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.CATALOGO = API;
 })(typeof window !== "undefined" ? window : globalThis);

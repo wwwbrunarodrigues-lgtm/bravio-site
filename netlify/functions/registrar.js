@@ -3,6 +3,7 @@
 const CAT = require("../../public/catalogo.js");
 const { montarPedido } = require("../lib/pedido.js");
 const { abrir, hojeBR } = require("../lib/db.js");
+const { situacao } = require("../lib/loja.js");
 
 const json = (code, body) => ({ statusCode: code, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 const FORMAS = ["Pix", "Cartão de crédito", "Cartão de débito", "Dinheiro"];
@@ -35,6 +36,8 @@ exports.handler = async (event) => {
     p.pedido = mp.external_reference || ("MP" + mp.id);
     pagamento = { m: "online", d: mp.payment_type_id === "bank_transfer" ? "Pix" : mp.payment_type_id === "debit_card" ? "Cartão de débito" : "Cartão de crédito", id: mp.id };
   } else {
+    // pedido para pagar na entrega/retirada só entra com a loja aberta (pedido já pago online sempre entra)
+    try { const st = await situacao(event); if (!st.aberto) return json(409, { fechado: true, erro: "Estamos fechados agora" + (st.abreTxt ? `. Abrimos ${st.diaAbre} às ${st.abreTxt}.` : ".") }); } catch (e) {}
     const forma = FORMAS.includes(pg.forma) ? pg.forma : "Pix";
     pagamento = { m: "entrega", d: forma, troco: forma === "Dinheiro" && Number(pg.troco) > 0 ? CAT.r2(Number(pg.troco)) : 0 };
   }

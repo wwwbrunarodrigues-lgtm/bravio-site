@@ -2,6 +2,7 @@
 // O navegador manda só o "token" do cartão (os números nunca passam pelo nosso servidor).
 // O valor cobrado é recalculado aqui a partir do catalogo.js.
 const { montarPedido } = require("../lib/pedido.js");
+const { situacao } = require("../lib/loja.js");
 
 const json = (code, body) => ({ statusCode: code, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
@@ -24,6 +25,7 @@ exports.handler = async (event) => {
   if (!token) return json(500, { erro: "Pagamento online ainda não configurado." });
 
   let b; try { b = JSON.parse(event.body || "{}"); } catch { return json(400, { erro: "JSON inválido" }); }
+  try { const st = await situacao(event); if (!st.aberto) return json(409, { fechado: true, erro: "Estamos fechados agora" + (st.abreTxt ? `. Abrimos ${st.diaAbre} às ${st.abreTxt}.` : ".") }); } catch (e) {}
   let p; try { p = montarPedido(b); } catch (e) { return json(400, { erro: e.message }); }
   const f = b.cartao || {};
   if (!f.token || !f.payment_method_id || !f.payer || !f.payer.email) return json(400, { erro: "Dados do cartão incompletos." });

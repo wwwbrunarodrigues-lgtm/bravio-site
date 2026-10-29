@@ -33,6 +33,7 @@ button,input{font:inherit;color:inherit}
 .btn.ok{background:var(--ok);color:#fff}
 .btn.blue{background:var(--blue);color:#fff}
 .btn.red{background:transparent;border:1px solid var(--red);color:#FF8A7E}
+.tog.loja.on{border-color:var(--ok);color:#7BE3A6}.tog.loja.off{border-color:var(--red);color:#FF8A7E}
 .err{color:#FF8A7E;font-weight:700;font-size:14px;text-align:center}
 
 /* topo */
@@ -115,6 +116,9 @@ main{padding:16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap
   <header>
     <div class="t">BRAVIO <span>PEDIDOS</span></div>
     <span class="tog" title="Atualiza sozinho a cada 8 segundos"><i class="dot" id="dot"></i><span id="sync">Conectando…</span></span>
+    <span class="tog loja" id="lojaSt">Loja…</span>
+    <button class="btn" type="button" id="lojaBtn" hidden></button>
+    <button class="btn" type="button" id="lojaAuto" hidden>Voltar ao horário</button>
     <input type="date" id="dia" aria-label="Dia">
     <label class="tog"><input type="checkbox" id="autoPrint"> Imprimir sozinho</label>
     <label class="tog"><input type="checkbox" id="somOn" checked> Som</label>
@@ -216,7 +220,30 @@ async function carregar(teste) {
     return 0;
   }
 }
-function ciclo() { carregar(); clearInterval(timer); timer = setInterval(carregar, 6000); }
+/* ---------- loja aberta / fechada ---------- */
+let lojaInfo = null;
+function mostraLoja() {
+  const l = lojaInfo; if (!l) return;
+  const st = $("#lojaSt"), btn = $("#lojaBtn");
+  st.className = "tog loja " + (l.aberto ? "on" : "off");
+  const ate = l.manual ? ` · manual até ${hora(l.ate)}` : "";
+  st.textContent = l.aberto ? `Loja ABERTA${l.fechaTxt && !l.manual ? " até " + l.fechaTxt : ""}${ate}` : `Loja FECHADA${l.abreTxt && !l.manual ? " · abre " + l.diaAbre + " " + l.abreTxt : ""}${ate}`;
+  btn.hidden = false;
+  btn.textContent = l.aberto ? "Fechar agora" : "Abrir agora";
+  btn.className = "btn " + (l.aberto ? "red" : "ok");
+  $("#lojaAuto").hidden = !l.manual;
+}
+async function carregarLoja() {
+  try { lojaInfo = await fetch("/api/loja", { cache: "no-store" }).then(r => r.json()); mostraLoja(); } catch (e) {}
+}
+async function mudarLoja(modo) {
+  const r = await fetch("/api/loja", { method: "POST", headers: { "Content-Type": "application/json", "x-senha": senha }, body: JSON.stringify({ modo }) }).then(r => r.json()).catch(() => ({}));
+  if (typeof r.aberto === "boolean") { lojaInfo = r; mostraLoja(); } else alert(r.erro || "Não foi possível mudar. Verifique a internet.");
+}
+$("#lojaBtn").onclick = () => mudarLoja(lojaInfo && lojaInfo.aberto ? "fechado" : "aberto");
+$("#lojaAuto").onclick = () => mudarLoja("auto");
+
+function ciclo() { carregar(); clearInterval(timer); timer = setInterval(carregar, 6000); carregarLoja(); setInterval(carregarLoja, 30000); }
 
 function novidades() {
   const novos = pedidos.filter(p => p.st === "novo");

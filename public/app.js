@@ -37,6 +37,24 @@ let gps = null;       // { lat, lng } se o cliente usou a localização
 let step = 1;
 const ehRet = () => CONFIG.retirada !== false && cliente.modo === "retirada";
 const FRETE_RET = { retirada: true, atende: true, taxa: 0, km: 0, lat: 0, lng: 0 };
+/* ---------- horário de funcionamento ---------- */
+let loja = window.CATALOGO.statusHorario();
+function textoLoja() {
+  if (loja.aberto) return loja.manual ? "Aberto agora" : `Aberto agora · até ${loja.fechaTxt}`;
+  return loja.abreTxt ? `Fechado · abrimos ${loja.diaAbre} às ${loja.abreTxt}` : "Fechado no momento";
+}
+function aplicarLoja() {
+  const chip = $("#statusLoja");
+  if (chip) { chip.className = "status-loja " + (loja.aberto ? "on" : "off"); chip.innerHTML = `<i></i>${esc(textoLoja())}`; }
+  const av = $("#avisoFechado");
+  if (av) { av.hidden = loja.aberto; av.innerHTML = `<b>${loja.abreTxt ? `Estamos fechados. Abrimos ${esc(loja.diaAbre)} às ${esc(loja.abreTxt)}.` : "Estamos fechados no momento."}</b><span>Você pode olhar o cardápio e montar sua sacola. ${esc(CONFIG.horarioTexto || "")}</span>`; }
+  if (!$("#cartOv").hidden && step === 1) renderCheckout();
+}
+async function atualizarLoja() {
+  try { const r = await fetch("/api/loja", { cache: "no-store" }); if (r.ok) { const j = await r.json(); if (typeof j.aberto === "boolean") loja = j; } else loja = window.CATALOGO.statusHorario(); }
+  catch (e) { loja = window.CATALOGO.statusHorario(); }
+  aplicarLoja();
+}
 const linhas = () => cart.map(i => ({ ...precificar(i), key: i.key }));
 const subtotal = () => r2(linhas().reduce((s, i) => s + i.total, 0));
 const saveCli = () => store.set("bravio_cliente2", cliente);
@@ -178,8 +196,9 @@ function stepSacola() {
     <button class="ghost" type="button" data-close style="margin-top:12px;width:100%">+ Adicionar mais itens</button>
     <div class="totals"><div class="t"><span>Subtotal</span><span>${brl(st)}</span></div>
     ${gratisFalta ? `<div class="muted"><span>Faltam ${brl(gratisFalta)} para frete grátis</span></div>` : ""}</div>
-    ${falta ? `<div class="err">Pedido mínimo de ${brl(CONFIG.pedidoMinimo)}. Faltam ${brl(falta)}.</div>` : ""}`;
-  $("#cFoot").innerHTML = `<button class="primary" type="button" id="toEntrega" ${falta ? "disabled" : ""}><span>Continuar</span><span>→</span></button>`;
+    ${falta ? `<div class="err">Pedido mínimo de ${brl(CONFIG.pedidoMinimo)}. Faltam ${brl(falta)}.</div>` : ""}
+    ${loja.aberto ? "" : `<div class="frete bad" style="margin-top:14px"><div><b>${esc(textoLoja())}</b><span>Sua sacola fica salva neste aparelho. Volte no horário de funcionamento para finalizar.<br>${esc(CONFIG.horarioTexto || "")}</span></div></div>`}`;
+  $("#cFoot").innerHTML = `<button class="primary" type="button" id="toEntrega" ${falta || !loja.aberto ? "disabled" : ""}><span>${loja.aberto ? "Continuar" : "Loja fechada"}</span><span>${loja.aberto ? "→" : ""}</span></button>`;
   $("#toEntrega").onclick = () => goto(2);
 }
 
@@ -427,7 +446,7 @@ async function pagarPix() {
     email: cliente.email
   };
   const r = await api("pix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => ({ erro: "Sem conexão. Tente de novo." }));
-  if (!r.ok) { btn.disabled = false; btn.firstElementChild.textContent = "Gerar Pix " + brl(totalPedido()); return mostrarErros([r.erro]); }
+  if (!r.ok) { if (r.fechado) atualizarLoja(); btn.disabled = false; btn.firstElementChild.textContent = "Gerar Pix " + brl(totalPedido()); return mostrarErros([r.erro]); }
   const pend = { pix: true, pedido: r.pedido, id: r.id, qr: r.qr, qr64: r.qr64, expira: r.expira, total: r.total, cart, cliente, frete };
   store.set("bravio_pendente", pend);
   telaPix(pend);
@@ -548,6 +567,7 @@ async function registrarPedido(pago) {
   try {
     const r = await api("registrar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (r && r.ok) return r;
+    if (r && r.fechado) return { fechado: true, erro: r.erro };
     ultimoErro = (r && r.erro) || "sem resposta do servidor";
     console.error("Pedido não registrado:", ultimoErro);
     return null;
@@ -562,6 +582,7 @@ async function finalizar(pago) {
 async function confirmarEntrega() {
   const btn = $("#confirmBtn"); btn.disabled = true; btn.firstElementChild.textContent = "Enviando pedido…";
   const reg = await registrarPedido(null);
+  if (reg && reg.fechado) { await atualizarLoja(); btn.disabled = false; btn.firstElementChild.textContent = "Confirmar pedido"; return mostrarErros([reg.erro]); }
   telaConfirmado(null, reg);
 }
 // Tela final. Com o pedido registrado, o WhatsApp vira só um aviso opcional.
@@ -658,7 +679,7 @@ document.querySelectorAll(".overlay").forEach(o => {
   o.addEventListener("click", e => { if (e.target === o || e.target.closest("[data-close]")) hide("#" + o.id); });
 });
 addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#prodOv").hidden) hide("#prodOv"); else if (!$("#cartOv").hidden) hide("#cartOv"); } });
-$("#openCart").onclick = () => { step = 1; renderCheckout(); show("#cartOv"); };
+$("#openCart").onclick = () => { step = 1; renderCheckout(); show("#cartOv"); atualizarLoja(); };
 
 // O pagamento online só aparece se o servidor (funções da Netlify + token do Mercado Pago) estiver ativo
 let onlineOk = false;
@@ -667,6 +688,7 @@ if (CONFIG.pagamentoOnline && location.protocol.startsWith("http")) {
 }
 
 renderMenu(); renderBar(); retornoPagamento();
+aplicarLoja(); atualizarLoja(); setInterval(atualizarLoja, 60000);
 
 // Se o cliente recarregou a página com um Pix em aberto, volta para a tela do QR Code
 (function retomarPix() {
