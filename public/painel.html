@@ -117,22 +117,22 @@ main{padding:16px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap
 
 /* comanda (só aparece na impressão) */
 #print{display:none}
-.ticket{width:var(--w);font-family:"Courier New",ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.3;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.w58 .ticket{font-size:11.5px}
+.ticket{width:var(--pw,72mm);box-sizing:border-box;overflow:hidden;overflow-wrap:anywhere;font-family:"Courier New",ui-monospace,Menlo,Consolas,monospace;font-size:15px;font-weight:700;line-height:1.3;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.w58 .ticket{font-size:13px}
 .ticket .c{text-align:center}.ticket .big{font-size:2.2em;font-weight:900;line-height:1.05}
 .ticket .nome{font-weight:900;font-size:1.25em;letter-spacing:.06em}
 .ticket hr{border:0;border-top:1px dashed #000;margin:7px 0}.ticket hr.solid{border-top:2px solid #000}
 .ticket .row{display:flex;justify-content:space-between;gap:8px}
-.ticket .it{margin:6px 0}.ticket .q{font-weight:900;font-size:1.15em}.ticket .op{padding-left:3ch}.ticket .ob{padding-left:3ch;font-weight:900}
+.ticket .it{margin:6px 0}.ticket .q{font-weight:900;font-size:1.15em}.ticket .op{padding-left:2ch;font-weight:900;font-size:1.12em;margin-top:2px}.ticket .ob{padding-left:2ch;font-weight:900;font-size:1.12em}.ticket .row>span:last-child{white-space:nowrap;flex-shrink:0}
 .ticket .tt{font-weight:900;font-size:1.3em}
 .ticket .box{border:2px solid #000;padding:5px;margin:6px 0;text-align:center;font-weight:900;font-size:1.1em}
 .ticket .inv{background:#000;color:#fff;padding:4px;text-align:center;font-weight:900;font-size:1.1em}
 @media print{
-  @page{size:var(--w) auto;margin:0}
+  @page{margin:0}
   body{background:#fff}
   body>*:not(#print){display:none!important}
   #print{display:block}
-  .ticket{width:100%;padding:2mm 3mm}
+  .ticket{width:var(--pw,72mm);padding:1mm 2mm}
 }
 </style>
 </head>
@@ -224,7 +224,7 @@ $("#autoPrint").onchange = e => ls.set("bravio_autoprint", e.target.checked);
 $("#somOn").checked = ls.get("bravio_som", true);
 $("#somOn").onchange = e => { ls.set("bravio_som", e.target.checked); if (!e.target.checked) pararSom(); };
 let papel = ls.get("bravio_papel", "80");
-function aplicaPapel() { document.documentElement.style.setProperty("--w", papel + "mm"); document.body.classList.toggle("w58", papel === "58"); $("#papel").textContent = "Papel " + papel + " mm"; }
+function aplicaPapel() { document.documentElement.style.setProperty("--w", papel + "mm"); document.documentElement.style.setProperty("--pw", (papel === "58" ? 48 : 72) + "mm"); document.body.classList.toggle("w58", papel === "58"); $("#papel").textContent = "Papel " + papel + " mm"; }
 $("#testeImp").onclick = () => imprimir({ p: "TESTE" + Date.now(), n: "TESTE", t: Date.now(), st: "novo",
   i: [[1, "Teste de impressão", 0, 0, ["Se esta comanda saiu sem abrir janela, está tudo certo"], ""]],
   s: 0, f: 0, km: 0, tot: 0, c: { n: "Bravio Food House", f: "-", e: "-", b: "-", r: "", cep: "" }, o: "", pg: { m: "entrega", d: "Pix" }, g: [0, 0] }, true);
